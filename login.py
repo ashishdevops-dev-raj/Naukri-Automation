@@ -93,10 +93,13 @@ def login_to_naukri(driver):
             (By.CSS_SELECTOR, "input[name='username']"),
         ]
         
-        for selector_type, selector_value in email_selectors:
+        for i, (selector_type, selector_value) in enumerate(email_selectors):
             try:
+                logger.info(f"Trying selector {i+1}/{len(email_selectors)}: {selector_type}={selector_value}")
+                # Try with shorter timeout per selector to avoid hanging
+                short_wait = WebDriverWait(driver, 5)
                 # Try visibility check first (more reliable)
-                email_field = wait.until(
+                email_field = short_wait.until(
                     EC.visibility_of_element_located((selector_type, selector_value))
                 )
                 logger.info(f"Found email field using {selector_type}: {selector_value}")
@@ -104,29 +107,56 @@ def login_to_naukri(driver):
             except TimeoutException:
                 try:
                     # Fallback to presence check
-                    email_field = wait.until(
+                    email_field = short_wait.until(
                         EC.presence_of_element_located((selector_type, selector_value))
                     )
                     logger.info(f"Found email field (presence) using {selector_type}: {selector_value}")
                     break
                 except TimeoutException:
+                    logger.debug(f"Selector {selector_type}={selector_value} failed, trying next...")
                     continue
         
         if email_field is None:
             logger.error("Could not find email field with any selector")
             logger.error(f"Page title: {driver.title}")
             logger.error(f"Page URL: {driver.current_url}")
+            
+            # Check for iframes
+            try:
+                iframes = driver.find_elements(By.TAG_NAME, "iframe")
+                logger.error(f"Found {len(iframes)} iframes on page")
+                if iframes:
+                    logger.error("Page contains iframes - email field might be inside an iframe")
+            except:
+                pass
+            
             # Try to find any input fields for debugging
             try:
                 all_inputs = driver.find_elements(By.TAG_NAME, "input")
                 logger.error(f"Found {len(all_inputs)} input elements on page")
-                for i, inp in enumerate(all_inputs[:5]):  # Show first 5
+                for i, inp in enumerate(all_inputs[:10]):  # Show first 10
                     try:
-                        logger.error(f"  Input {i}: type={inp.get_attribute('type')}, id={inp.get_attribute('id')}, name={inp.get_attribute('name')}, placeholder={inp.get_attribute('placeholder')}")
-                    except:
-                        pass
+                        inp_id = inp.get_attribute('id') or 'None'
+                        inp_name = inp.get_attribute('name') or 'None'
+                        inp_type = inp.get_attribute('type') or 'None'
+                        inp_placeholder = inp.get_attribute('placeholder') or 'None'
+                        inp_class = inp.get_attribute('class') or 'None'
+                        logger.error(f"  Input {i}: id={inp_id}, name={inp_name}, type={inp_type}, placeholder={inp_placeholder}, class={inp_class[:50]}")
+                    except Exception as e:
+                        logger.error(f"  Input {i}: Error getting attributes - {e}")
+            except Exception as e:
+                logger.error(f"Error finding inputs: {e}")
+            
+            # Try to get page source snippet for debugging
+            try:
+                page_source = driver.page_source
+                if 'usernameField' in page_source or 'username' in page_source.lower():
+                    logger.error("Page source contains 'usernameField' or 'username' - element might be hidden or in iframe")
+                else:
+                    logger.error("Page source does NOT contain 'usernameField' or 'username' - page structure might have changed")
             except:
                 pass
+            
             return False
         email_field.clear()
         if Config is None:
