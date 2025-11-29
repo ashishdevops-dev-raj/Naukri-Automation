@@ -508,7 +508,52 @@ def login_to_naukri(driver):
                     if "otp" in page_text_lower or "enter the otp" in page_text_lower or "verify" in page_text_lower:
                         logger.warning("OTP (One-Time Password) verification required!")
                         logger.info("Credentials are correct, but Naukri requires OTP verification")
-                        logger.info("Attempting to handle OTP...")
+                        
+                        # First, try to find and click "Skip" or "Remember this device" options
+                        skip_options = [
+                            "//a[contains(text(), 'Skip')]",
+                            "//button[contains(text(), 'Skip')]",
+                            "//a[contains(text(), 'skip')]",
+                            "//button[contains(text(), 'skip')]",
+                            "//a[contains(text(), 'Later')]",
+                            "//button[contains(text(), 'Later')]",
+                            "//a[contains(text(), 'Remember')]",
+                            "//button[contains(text(), 'Remember')]",
+                            "//a[contains(text(), 'Trust')]",
+                            "//button[contains(text(), 'Trust')]",
+                            "//*[contains(@class, 'skip')]",
+                            "//*[contains(@id, 'skip')]",
+                        ]
+                        
+                        skip_clicked = False
+                        for skip_selector in skip_options:
+                            try:
+                                skip_elem = driver.find_elements(By.XPATH, skip_selector)
+                                for elem in skip_elem:
+                                    if elem.is_displayed() and elem.is_enabled():
+                                        logger.info(f"Found skip option: {skip_selector}, clicking...")
+                                        elem.click()
+                                        time.sleep(2)
+                                        skip_clicked = True
+                                        
+                                        # Check if we're logged in now
+                                        final_url = driver.current_url
+                                        if "nlogin" not in final_url and "login" not in final_url.lower():
+                                            logger.info("Skipped OTP successfully - logged in!")
+                                            return True
+                                        break
+                            except:
+                                continue
+                        
+                        if skip_clicked:
+                            logger.info("Skip option clicked, checking login status...")
+                            time.sleep(3)
+                            final_url = driver.current_url
+                            if "nlogin" not in final_url and "login" not in final_url.lower():
+                                logger.info("Login successful after skipping OTP!")
+                                return True
+                        
+                        logger.info("No skip option found, attempting to handle OTP...")
                         
                         # Try to find OTP input field
                         otp_field = None
@@ -519,6 +564,7 @@ def login_to_naukri(driver):
                             (By.XPATH, "//input[@type='number']"),
                             (By.XPATH, "//input[contains(@class, 'otp')]"),
                             (By.XPATH, "//input[contains(@id, 'otp')]"),
+                            (By.XPATH, "//input[contains(@name, 'otp')]"),
                         ]
                         
                         for selector_type, selector_value in otp_selectors:
