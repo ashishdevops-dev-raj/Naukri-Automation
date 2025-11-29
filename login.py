@@ -176,10 +176,27 @@ def login_to_naukri(driver):
                 pass
             
             return False
+        # Fill email field with proper events
         email_field.clear()
         if Config is None:
             raise ImportError("Config module not available")
-        email_field.send_keys(Config.NAUKRI_EMAIL)
+        
+        # Click on field first to focus
+        email_field.click()
+        time.sleep(0.5)
+        
+        # Type email character by character to simulate human typing
+        email = Config.NAUKRI_EMAIL
+        for char in email:
+            email_field.send_keys(char)
+            time.sleep(0.05)  # Small delay between characters
+        
+        # Trigger input events
+        driver.execute_script("arguments[0].dispatchEvent(new Event('input', {bubbles: true}));", email_field)
+        driver.execute_script("arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", email_field)
+        time.sleep(1)
+        
+        logger.info(f"Email entered: {email[:3]}***{email[-5:]}")
         
         # Find and fill password - try multiple selectors
         logger.info("Entering password...")
@@ -205,8 +222,36 @@ def login_to_naukri(driver):
             logger.error("Could not find password field with any selector")
             return False
         
+        # Fill password field with proper events
         password_field.clear()
-        password_field.send_keys(Config.NAUKRI_PASSWORD)
+        password_field.click()
+        time.sleep(0.5)
+        
+        # Type password character by character
+        password = Config.NAUKRI_PASSWORD
+        for char in password:
+            password_field.send_keys(char)
+            time.sleep(0.05)
+        
+        # Trigger input events
+        driver.execute_script("arguments[0].dispatchEvent(new Event('input', {bubbles: true}));", password_field)
+        driver.execute_script("arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", password_field)
+        time.sleep(1)
+        
+        logger.info("Password entered")
+        
+        # Check if form is valid before submitting
+        try:
+            form_valid = driver.execute_script("""
+                var form = arguments[0].closest('form');
+                if (form) {
+                    return form.checkValidity();
+                }
+                return true;
+            """, password_field)
+            logger.info(f"Form validity check: {form_valid}")
+        except:
+            pass
         
         # Click login button - try multiple selectors
         logger.info("Clicking login button...")
@@ -234,35 +279,64 @@ def login_to_naukri(driver):
         # Try multiple methods to submit the form
         logger.info("Submitting login form...")
         
-        # Method 1: Try pressing Enter on password field
-        try:
-            logger.info("Trying Enter key on password field...")
-            password_field.send_keys(Keys.RETURN)
-            time.sleep(3)
-        except Exception as e:
-            logger.warning(f"Enter key method failed: {e}")
+        # Wait a bit for any validation to complete
+        time.sleep(2)
         
-        # Method 2: Try clicking the button
+        # Method 1: Try clicking the button with multiple approaches
+        submission_success = False
         try:
             # Scroll to button to ensure it's visible
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", login_button)
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", login_button)
             time.sleep(1)
             
             # Check if button is actually clickable
             if login_button.is_displayed() and login_button.is_enabled():
-                logger.info("Button is visible and enabled, clicking...")
-                login_button.click()
+                logger.info("Button is visible and enabled, trying click...")
+                # Try regular click
+                try:
+                    login_button.click()
+                    submission_success = True
+                    logger.info("Regular click succeeded")
+                except Exception as e:
+                    logger.warning(f"Regular click failed: {e}, trying JavaScript click...")
+                    # Try JavaScript click
+                    try:
+                        driver.execute_script("arguments[0].click();", login_button)
+                        submission_success = True
+                        logger.info("JavaScript click succeeded")
+                    except Exception as e2:
+                        logger.warning(f"JavaScript click failed: {e2}")
             else:
                 logger.warning("Button not clickable, trying JavaScript click...")
                 driver.execute_script("arguments[0].click();", login_button)
+                submission_success = True
         except Exception as e:
-            logger.warning(f"Button click failed: {e}, trying form submit...")
-            # Method 3: Try submitting the form directly
+            logger.warning(f"Button click failed: {e}")
+        
+        # Method 2: If button click didn't work, try form submit
+        if not submission_success:
             try:
+                logger.info("Trying form submit...")
                 form = password_field.find_element(By.XPATH, "./ancestor::form")
                 driver.execute_script("arguments[0].submit();", form)
-            except:
-                logger.warning("Form submit also failed")
+                submission_success = True
+                logger.info("Form submit succeeded")
+            except Exception as e:
+                logger.warning(f"Form submit failed: {e}")
+        
+        # Method 3: Try pressing Enter on password field
+        if not submission_success:
+            try:
+                logger.info("Trying Enter key on password field...")
+                password_field.send_keys(Keys.RETURN)
+                submission_success = True
+                logger.info("Enter key succeeded")
+            except Exception as e:
+                logger.warning(f"Enter key method failed: {e}")
+        
+        if not submission_success:
+            logger.error("All submission methods failed!")
+            return False
         
         # Wait for navigation or error message
         logger.info("Waiting for login to process...")
