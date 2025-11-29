@@ -340,65 +340,106 @@ def login_to_naukri(driver):
         
         # Wait for navigation or error message
         logger.info("Waiting for login to process...")
-        time.sleep(5)  # Increased wait time
         
-        # Check for error messages first - be more thorough
+        # Wait and check multiple times for URL change or errors
+        max_wait_time = 10
+        check_interval = 1
+        waited = 0
+        url_changed = False
         error_found = False
         error_messages = []
         
-        error_selectors = [
-            "//div[contains(@class, 'error')]",
-            "//span[contains(@class, 'error')]",
-            "//div[contains(@class, 'alert')]",
-            "//div[contains(@class, 'warning')]",
-            "//div[contains(@class, 'message')]",
-            "//span[contains(@class, 'message')]",
-            "//div[contains(text(), 'Invalid')]",
-            "//div[contains(text(), 'incorrect')]",
-            "//div[contains(text(), 'wrong')]",
-            "//div[contains(text(), 'failed')]",
-            "//div[contains(text(), 'error')]",
-            "//*[contains(@id, 'error')]",
-            "//*[contains(@class, 'invalid')]",
-        ]
-        
-        for error_selector in error_selectors:
+        while waited < max_wait_time:
+            time.sleep(check_interval)
+            waited += check_interval
+            
+            current_url = driver.current_url
+            logger.info(f"Checking after {waited}s - URL: {current_url}")
+            
+            # Check if URL changed (login successful)
+            if "nlogin" not in current_url and "login" not in current_url.lower():
+                url_changed = True
+                logger.info("URL changed - login likely successful!")
+                break
+            
+            # Check for error messages
+            error_selectors = [
+                "//div[contains(@class, 'error')]",
+                "//span[contains(@class, 'error')]",
+                "//div[contains(@class, 'alert')]",
+                "//div[contains(@class, 'warning')]",
+                "//div[contains(@class, 'message')]",
+                "//span[contains(@class, 'message')]",
+                "//div[contains(@class, 'invalid')]",
+                "//span[contains(@class, 'invalid')]",
+                "//*[contains(@id, 'error')]",
+                "//*[contains(@id, 'Error')]",
+                "//*[contains(@class, 'error-msg')]",
+                "//*[contains(@class, 'errorMsg')]",
+                "//*[contains(@class, 'errormsg')]",
+            ]
+            
+            for error_selector in error_selectors:
+                try:
+                    error_elems = driver.find_elements(By.XPATH, error_selector)
+                    for error_elem in error_elems:
+                        try:
+                            if error_elem.is_displayed():
+                                error_text = error_elem.text.strip()
+                                if error_text and len(error_text) > 0 and error_text not in error_messages:
+                                    error_messages.append(error_text)
+                                    logger.error(f"Login error detected: {error_text}")
+                                    error_found = True
+                        except:
+                            continue
+                except:
+                    continue
+            
+            # Check page text for error keywords
             try:
-                error_elems = driver.find_elements(By.XPATH, error_selector)
-                for error_elem in error_elems:
-                    try:
-                        error_text = error_elem.text.strip()
-                        if error_text and len(error_text) > 0:
-                            error_messages.append(error_text)
-                            logger.error(f"Login error detected: {error_text}")
-                            error_found = True
-                    except:
-                        continue
+                page_text = driver.find_element(By.TAG_NAME, "body").text
+                page_text_lower = page_text.lower()
+                error_keywords = [
+                    'invalid email', 'invalid password', 'incorrect', 'wrong password', 
+                    'wrong email', 'login failed', 'authentication failed', 'invalid credentials',
+                    'please enter valid', 'try again', 'account locked', 'suspended'
+                ]
+                for keyword in error_keywords:
+                    if keyword in page_text_lower:
+                        # Extract the error message
+                        lines = page_text.split('\n')
+                        for line in lines:
+                            if keyword in line.lower():
+                                if line.strip() not in error_messages:
+                                    error_messages.append(line.strip())
+                                    logger.error(f"Error keyword found: '{line.strip()}'")
+                                    error_found = True
+                        break
             except:
-                continue
-        
-        # Also check page source for common error keywords
-        try:
-            page_text = driver.find_element(By.TAG_NAME, "body").text.lower()
-            error_keywords = ['invalid', 'incorrect', 'wrong password', 'wrong email', 'login failed', 'authentication failed']
-            for keyword in error_keywords:
-                if keyword in page_text:
-                    logger.error(f"Error keyword found in page: '{keyword}'")
-                    error_found = True
-                    break
-        except:
-            pass
+                pass
+            
+            if error_found:
+                break
         
         if error_found:
             logger.error(f"Login failed with errors: {error_messages}")
+            # Log all visible text on the page for debugging
+            try:
+                page_text = driver.find_element(By.TAG_NAME, "body").text
+                logger.error("Page content after login attempt:")
+                logger.error(page_text[:500])  # First 500 chars
+            except:
+                pass
             return False
         
         # Check for CAPTCHA
         try:
-            captcha_elements = driver.find_elements(By.XPATH, "//*[contains(@class, 'captcha') or contains(@id, 'captcha') or contains(text(), 'CAPTCHA')]")
+            captcha_elements = driver.find_elements(By.XPATH, "//*[contains(@class, 'captcha') or contains(@id, 'captcha') or contains(text(), 'CAPTCHA') or contains(text(), 'captcha')]")
             if captcha_elements:
-                logger.error("CAPTCHA detected! Manual intervention required.")
-                return False
+                for cap in captcha_elements:
+                    if cap.is_displayed():
+                        logger.error("CAPTCHA detected! Manual intervention required.")
+                        return False
         except:
             pass
         
@@ -410,9 +451,14 @@ def login_to_naukri(driver):
         # Wait longer for navigation
         time.sleep(3)
         
+        # If URL already changed, we're good
+        if url_changed:
+            logger.info("Login successful - URL changed!")
+            return True
+        
         # Check current URL
         current_url_after = driver.current_url
-        logger.info(f"URL after login attempt: {current_url_after}")
+        logger.info(f"Final URL after login attempt: {current_url_after}")
         
         # Verify login success by checking for dashboard elements or URL change
         login_success = False
@@ -429,11 +475,13 @@ def login_to_naukri(driver):
                 (By.XPATH, "//a[contains(text(), 'My Profile')]"),
                 (By.XPATH, "//a[contains(text(), 'Profile')]"),
                 (By.XPATH, "//div[contains(@class, 'dashboard')]"),
+                (By.XPATH, "//a[contains(@href, 'mnjuser')]"),  # Naukri user menu
+                (By.XPATH, "//*[contains(@class, 'userProfile')]"),
             ]
             
             for selector_type, selector_value in dashboard_selectors:
                 try:
-                    short_wait = WebDriverWait(driver, 5)
+                    short_wait = WebDriverWait(driver, 3)
                     short_wait.until(
                         EC.presence_of_element_located((selector_type, selector_value))
                     )
@@ -450,13 +498,23 @@ def login_to_naukri(driver):
             # Check if still on login page (login failed)
             if "nlogin" in current_url_after or "login" in current_url_after.lower():
                 logger.error("Login failed - still on login page")
-                # Try to get any error message
+                # Get page source to see what's there
                 try:
                     page_text = driver.find_element(By.TAG_NAME, "body").text
+                    logger.error("Page content when login failed:")
+                    logger.error(page_text[:1000])  # First 1000 chars for debugging
+                    
+                    # Check for specific error patterns
                     if "invalid" in page_text.lower() or "incorrect" in page_text.lower():
-                        logger.error("Credentials might be incorrect")
-                except:
-                    pass
+                        logger.error("ERROR: Credentials appear to be incorrect!")
+                    elif "captcha" in page_text.lower():
+                        logger.error("ERROR: CAPTCHA required!")
+                    elif "blocked" in page_text.lower() or "suspended" in page_text.lower():
+                        logger.error("ERROR: Account might be blocked or suspended!")
+                    else:
+                        logger.error("ERROR: Unknown login failure reason")
+                except Exception as e:
+                    logger.error(f"Error getting page content: {e}")
                 return False
             # Might have logged in but different page structure
             logger.warning("Could not verify login, but URL changed - assuming success")
