@@ -3,6 +3,7 @@ Naukri Login Module
 Handles secure login using environment variables
 """
 
+import os
 import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -501,18 +502,84 @@ def login_to_naukri(driver):
                 # Get page source to see what's there
                 try:
                     page_text = driver.find_element(By.TAG_NAME, "body").text
-                    logger.error("Page content when login failed:")
-                    logger.error(page_text[:1000])  # First 1000 chars for debugging
+                    page_text_lower = page_text.lower()
+                    
+                    # Check for OTP requirement
+                    if "otp" in page_text_lower or "enter the otp" in page_text_lower or "verify" in page_text_lower:
+                        logger.warning("OTP (One-Time Password) verification required!")
+                        logger.info("Credentials are correct, but Naukri requires OTP verification")
+                        logger.info("Attempting to handle OTP...")
+                        
+                        # Try to find OTP input field
+                        otp_field = None
+                        otp_selectors = [
+                            (By.XPATH, "//input[@type='text' and contains(@placeholder, 'OTP')]"),
+                            (By.XPATH, "//input[@type='text' and contains(@placeholder, 'otp')]"),
+                            (By.XPATH, "//input[@type='text' and contains(@placeholder, 'Enter')]"),
+                            (By.XPATH, "//input[@type='number']"),
+                            (By.XPATH, "//input[contains(@class, 'otp')]"),
+                            (By.XPATH, "//input[contains(@id, 'otp')]"),
+                        ]
+                        
+                        for selector_type, selector_value in otp_selectors:
+                            try:
+                                otp_field = driver.find_element(selector_type, selector_value)
+                                if otp_field.is_displayed():
+                                    logger.info(f"Found OTP field: {selector_type}={selector_value}")
+                                    break
+                            except:
+                                continue
+                        
+                        # Check if OTP is provided via environment variable
+                        otp_code = os.getenv("NAUKRI_OTP", "")
+                        if otp_code and otp_field:
+                            logger.info("OTP code provided via environment variable, entering...")
+                            otp_field.clear()
+                            otp_field.send_keys(otp_code)
+                            time.sleep(1)
+                            
+                            # Find and click verify button
+                            verify_selectors = [
+                                (By.XPATH, "//button[contains(text(), 'Verify')]"),
+                                (By.XPATH, "//button[contains(text(), 'Submit')]"),
+                                (By.XPATH, "//button[@type='submit']"),
+                            ]
+                            
+                            for selector_type, selector_value in verify_selectors:
+                                try:
+                                    verify_button = driver.find_element(selector_type, selector_value)
+                                    if verify_button.is_displayed() and verify_button.is_enabled():
+                                        verify_button.click()
+                                        logger.info("OTP verification submitted")
+                                        time.sleep(5)
+                                        
+                                        # Check if verification succeeded
+                                        final_url = driver.current_url
+                                        if "nlogin" not in final_url and "login" not in final_url.lower():
+                                            logger.info("OTP verification successful!")
+                                            return True
+                                        break
+                                except:
+                                    continue
+                            
+                            logger.warning("OTP verification may have failed or is still processing")
+                        else:
+                            logger.error("OTP required but not provided!")
+                            logger.error("To enable OTP handling, set NAUKRI_OTP environment variable")
+                            logger.error("Note: OTP is sent to your email and expires quickly")
+                            return False
                     
                     # Check for specific error patterns
-                    if "invalid" in page_text.lower() or "incorrect" in page_text.lower():
+                    elif "invalid" in page_text_lower or "incorrect" in page_text_lower():
                         logger.error("ERROR: Credentials appear to be incorrect!")
-                    elif "captcha" in page_text.lower():
+                    elif "captcha" in page_text_lower:
                         logger.error("ERROR: CAPTCHA required!")
-                    elif "blocked" in page_text.lower() or "suspended" in page_text.lower():
+                    elif "blocked" in page_text_lower or "suspended" in page_text_lower:
                         logger.error("ERROR: Account might be blocked or suspended!")
                     else:
                         logger.error("ERROR: Unknown login failure reason")
+                        logger.error("Page content when login failed:")
+                        logger.error(page_text[:1000])  # First 1000 chars for debugging
                 except Exception as e:
                     logger.error(f"Error getting page content: {e}")
                 return False

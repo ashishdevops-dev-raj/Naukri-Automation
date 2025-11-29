@@ -24,6 +24,7 @@ class Config:
     # Login credentials (required)
     NAUKRI_EMAIL = os.getenv("NAUKRI_EMAIL", "")
     NAUKRI_PASSWORD = os.getenv("NAUKRI_PASSWORD", "")
+    NAUKRI_OTP = os.getenv("NAUKRI_OTP", "")  # Optional: OTP for 2FA
     
     # Search parameters
     SEARCH_KEYWORD = os.getenv("SEARCH_KEYWORD", "devops")
