@@ -510,45 +510,99 @@ def login_to_naukri(driver):
                         logger.info("Credentials are correct, but Naukri requires OTP verification")
                         
                         # First, try to find and click "Skip" or "Remember this device" options
+                        # Also check for links/buttons that might allow bypassing OTP
                         skip_options = [
-                            "//a[contains(text(), 'Skip')]",
-                            "//button[contains(text(), 'Skip')]",
-                            "//a[contains(text(), 'skip')]",
-                            "//button[contains(text(), 'skip')]",
-                            "//a[contains(text(), 'Later')]",
-                            "//button[contains(text(), 'Later')]",
-                            "//a[contains(text(), 'Remember')]",
-                            "//button[contains(text(), 'Remember')]",
-                            "//a[contains(text(), 'Trust')]",
-                            "//button[contains(text(), 'Trust')]",
-                            "//*[contains(@class, 'skip')]",
-                            "//*[contains(@id, 'skip')]",
+                            (By.XPATH, "//a[contains(text(), 'Skip')]"),
+                            (By.XPATH, "//button[contains(text(), 'Skip')]"),
+                            (By.XPATH, "//a[contains(text(), 'skip')]"),
+                            (By.XPATH, "//button[contains(text(), 'skip')]"),
+                            (By.XPATH, "//a[contains(text(), 'Later')]"),
+                            (By.XPATH, "//button[contains(text(), 'Later')]"),
+                            (By.XPATH, "//a[contains(text(), 'Remember')]"),
+                            (By.XPATH, "//button[contains(text(), 'Remember')]"),
+                            (By.XPATH, "//a[contains(text(), 'Trust')]"),
+                            (By.XPATH, "//button[contains(text(), 'Trust')]"),
+                            (By.XPATH, "//a[contains(text(), 'Not Now')]"),
+                            (By.XPATH, "//button[contains(text(), 'Not Now')]"),
+                            (By.XPATH, "//*[contains(@class, 'skip')]"),
+                            (By.XPATH, "//*[contains(@id, 'skip')]"),
+                            (By.XPATH, "//*[contains(@class, 'later')]"),
+                            (By.XPATH, "//*[contains(@id, 'later')]"),
+                            (By.CSS_SELECTOR, "a[href*='skip']"),
+                            (By.CSS_SELECTOR, "button[class*='skip']"),
                         ]
                         
                         skip_clicked = False
-                        for skip_selector in skip_options:
+                        for selector_type, selector_value in skip_options:
                             try:
-                                skip_elem = driver.find_elements(By.XPATH, skip_selector)
-                                for elem in skip_elem:
-                                    if elem.is_displayed() and elem.is_enabled():
-                                        logger.info(f"Found skip option: {skip_selector}, clicking...")
-                                        elem.click()
-                                        time.sleep(2)
-                                        skip_clicked = True
-                                        
-                                        # Check if we're logged in now
-                                        final_url = driver.current_url
-                                        if "nlogin" not in final_url and "login" not in final_url.lower():
-                                            logger.info("Skipped OTP successfully - logged in!")
-                                            return True
-                                        break
-                            except:
+                                skip_elems = driver.find_elements(selector_type, selector_value)
+                                for elem in skip_elems:
+                                    try:
+                                        if elem.is_displayed() and elem.is_enabled():
+                                            elem_text = elem.text.lower()
+                                            logger.info(f"Found potential skip option: '{elem_text}' ({selector_type}={selector_value}), clicking...")
+                                            # Scroll into view
+                                            driver.execute_script("arguments[0].scrollIntoView(true);", elem)
+                                            time.sleep(0.5)
+                                            elem.click()
+                                            time.sleep(3)
+                                            skip_clicked = True
+                                            
+                                            # Check if we're logged in now
+                                            final_url = driver.current_url
+                                            page_title = driver.title
+                                            logger.info(f"After skip click - URL: {final_url}, Title: {page_title}")
+                                            
+                                            if "nlogin" not in final_url and "login" not in final_url.lower():
+                                                logger.info("Skipped OTP successfully - logged in!")
+                                                return True
+                                            
+                                            # Also check page content to see if OTP requirement is gone
+                                            try:
+                                                new_page_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+                                                if "otp" not in new_page_text or "enter the otp" not in new_page_text:
+                                                    logger.info("OTP requirement seems to be gone, checking login status...")
+                                                    time.sleep(2)
+                                                    final_url = driver.current_url
+                                                    if "nlogin" not in final_url and "login" not in final_url.lower():
+                                                        logger.info("Login successful after skipping OTP!")
+                                                        return True
+                                            except:
+                                                pass
+                                            break
+                                    except Exception as e:
+                                        logger.debug(f"Error clicking skip element: {e}")
+                                        continue
+                            except Exception as e:
+                                logger.debug(f"Error finding skip element {selector_value}: {e}")
                                 continue
                         
                         if skip_clicked:
-                            logger.info("Skip option clicked, checking login status...")
-                            time.sleep(3)
+                            logger.info("Skip option was clicked, but login status unclear. Waiting and rechecking...")
+                            time.sleep(5)
                             final_url = driver.current_url
+                            page_title = driver.title
+                            logger.info(f"Final check - URL: {final_url}, Title: {page_title}")
+                            
+                            # Check if we're actually logged in by looking for dashboard elements
+                            try:
+                                dashboard_indicators = [
+                                    "//a[contains(@href, '/mnjuser/homepage')]",
+                                    "//a[contains(@href, '/myNaukri')]",
+                                    "//*[contains(text(), 'My Naukri')]",
+                                    "//*[contains(text(), 'Profile')]",
+                                ]
+                                for indicator in dashboard_indicators:
+                                    try:
+                                        elem = driver.find_element(By.XPATH, indicator)
+                                        if elem.is_displayed():
+                                            logger.info("Found dashboard indicator - login successful!")
+                                            return True
+                                    except:
+                                        continue
+                            except:
+                                pass
+                            
                             if "nlogin" not in final_url and "login" not in final_url.lower():
                                 logger.info("Login successful after skipping OTP!")
                                 return True
@@ -620,7 +674,7 @@ def login_to_naukri(driver):
                             return False
                     
                     # Check for specific error patterns
-                    elif "invalid" in page_text_lower or "incorrect" in page_text_lower():
+                    elif "invalid" in page_text_lower or "incorrect" in page_text_lower:
                         logger.error("ERROR: Credentials appear to be incorrect!")
                     elif "captcha" in page_text_lower:
                         logger.error("ERROR: CAPTCHA required!")
