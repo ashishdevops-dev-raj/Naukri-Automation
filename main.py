@@ -53,7 +53,30 @@ def setup_driver():
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--disable-gpu")
         
-        service = Service(ChromeDriverManager().install())
+        # Get ChromeDriver path and ensure we use the correct executable
+        driver_path = ChromeDriverManager().install()
+        
+        # Fix for webdriver-manager issue: find the actual chromedriver executable
+        import glob
+        if os.path.isdir(driver_path):
+            # If it's a directory, look for the chromedriver executable
+            chromedriver_files = glob.glob(os.path.join(driver_path, "**/chromedriver"), recursive=True)
+            if chromedriver_files:
+                driver_path = chromedriver_files[0]
+            else:
+                # Try alternative names
+                chromedriver_files = glob.glob(os.path.join(driver_path, "**/chromedriver*"), recursive=True)
+                # Filter out non-executable files
+                chromedriver_files = [f for f in chromedriver_files if os.path.isfile(f) and os.access(f, os.X_OK)]
+                if chromedriver_files:
+                    driver_path = chromedriver_files[0]
+        
+        # Ensure the driver is executable
+        if os.path.isfile(driver_path):
+            os.chmod(driver_path, 0o755)
+        
+        logger.info(f"Using ChromeDriver at: {driver_path}")
+        service = Service(driver_path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
         # Remove webdriver property
