@@ -9,11 +9,47 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
-from config import Config
-from utils.logger import setup_logger
-from utils.helpers import handle_popups, take_screenshot
-
-logger = setup_logger(__name__)
+try:
+    from config import Config
+    from utils.logger import setup_logger
+    from utils.helpers import handle_popups, take_screenshot
+    logger = setup_logger(__name__)
+except ImportError as e:
+    import logging
+    import os
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Import warning: {e}. Using basic logging.")
+    try:
+        from config import Config
+    except ImportError:
+        logger.error("Failed to import Config")
+        class Config:
+            APPLY_LIMIT = int(os.getenv("APPLY_LIMIT", "5"))
+            DELAY_BETWEEN_APPLICATIONS = int(os.getenv("DELAY_BETWEEN_APPLICATIONS", "3"))
+            SCREENSHOT_DIR = os.getenv("SCREENSHOT_DIR", "screenshots")
+    try:
+        from utils.helpers import handle_popups, take_screenshot
+    except ImportError:
+        logger.error("Failed to import helpers")
+        def handle_popups(driver, max_attempts=3):
+            pass
+        def take_screenshot(driver, filename):
+            return None
+except Exception as e:
+    import logging
+    import os
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.error(f"Unexpected error during import: {e}")
+    class Config:
+        APPLY_LIMIT = int(os.getenv("APPLY_LIMIT", "5"))
+        DELAY_BETWEEN_APPLICATIONS = int(os.getenv("DELAY_BETWEEN_APPLICATIONS", "3"))
+        SCREENSHOT_DIR = os.getenv("SCREENSHOT_DIR", "screenshots")
+    def handle_popups(driver, max_attempts=3):
+        pass
+    def take_screenshot(driver, filename):
+        return None
 
 
 def apply_to_jobs(driver, job_urls):

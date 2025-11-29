@@ -12,14 +12,29 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
-from login import login_to_naukri
-from search import search_jobs
-from apply import apply_to_jobs
-from config import Config
-from utils.logger import setup_logger
-from utils.helpers import take_screenshot, cleanup_driver
-
-logger = setup_logger(__name__)
+try:
+    from login import login_to_naukri
+    from search import search_jobs
+    from apply import apply_to_jobs
+    from config import Config
+    from utils.logger import setup_logger
+    from utils.helpers import take_screenshot, cleanup_driver
+    logger = setup_logger(__name__)
+except ImportError as e:
+    import logging
+    import sys
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.error(f"Critical import error: {e}")
+    logger.error("Cannot proceed without required modules")
+    sys.exit(1)
+except Exception as e:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.error(f"Unexpected error during import: {e}")
+    import sys
+    sys.exit(1)
 
 
 def setup_driver():

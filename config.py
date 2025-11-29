@@ -4,9 +4,18 @@ Loads configuration from environment variables
 """
 
 import os
-from utils.logger import setup_logger
 
-logger = setup_logger(__name__)
+try:
+    from utils.logger import setup_logger
+    logger = setup_logger(__name__)
+except ImportError:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+except Exception:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
 
 class Config:
