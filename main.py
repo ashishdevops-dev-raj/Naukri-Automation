@@ -88,10 +88,13 @@ def setup_driver():
             # Check each path - must be a file, executable, and NOT contain NOTICES
             found = False
             for path in possible_paths:
-                if os.path.isfile(path) and 'NOTICES' not in path and 'THIRD_PARTY' not in path and os.path.basename(path) == "chromedriver":
-                    # Verify it's actually executable
+                if os.path.isfile(path) and 'NOTICES' not in path and 'THIRD_PARTY' not in path and 'LICENSE' not in path and os.path.basename(path) == "chromedriver":
                     try:
-                        if os.access(path, os.X_OK):
+                        # Make it executable first
+                        if os.name != 'nt':
+                            os.chmod(path, 0o755)
+                        # Check if it's now executable (or on Windows, just verify it exists)
+                        if os.name == 'nt' or os.access(path, os.X_OK):
                             driver_path = path
                             found = True
                             logger.info(f"Found ChromeDriver at: {driver_path}")
