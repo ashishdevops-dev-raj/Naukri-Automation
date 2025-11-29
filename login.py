@@ -61,6 +61,17 @@ def login_to_naukri(driver):
         current_url = driver.current_url
         logger.info(f"Current URL after navigation: {current_url}")
         
+        # Check if we got blocked
+        page_title = driver.title
+        if "Access Denied" in page_title or "blocked" in page_title.lower() or "forbidden" in page_title.lower():
+            logger.error(f"Access Denied! Page title: {page_title}")
+            logger.error("Naukri is blocking automated access. This might be due to:")
+            logger.error("1. Bot detection (headless browser detected)")
+            logger.error("2. IP-based blocking")
+            logger.error("3. Rate limiting")
+            logger.error("Consider running locally with a visible browser or using a proxy/VPN")
+            return False
+        
         # Handle any initial popups
         handle_popups(driver)
         time.sleep(2)
@@ -74,6 +85,12 @@ def login_to_naukri(driver):
             logger.info("Page loaded completely")
         except:
             logger.warning("Page ready state check failed, continuing anyway")
+        
+        # Double-check we're not blocked after page load
+        page_title_after = driver.title
+        if "Access Denied" in page_title_after or "blocked" in page_title_after.lower():
+            logger.error(f"Access Denied detected after page load! Page title: {page_title_after}")
+            return False
         
         # Find and fill email - try multiple selectors with visibility check
         logger.info("Entering email...")
