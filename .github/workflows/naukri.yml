@@ -38,6 +38,7 @@ jobs:
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
+          NAUKRI_OTP: ${{ secrets.NAUKRI_OTP || '' }}
           SEARCH_KEYWORD: ${{ vars.SEARCH_KEYWORD || 'DevOps Engineer' }}
           SEARCH_LOCATION: ${{ vars.SEARCH_LOCATION || 'Bangalore' }}
           APPLY_LIMIT: ${{ vars.APPLY_LIMIT || '5' }}

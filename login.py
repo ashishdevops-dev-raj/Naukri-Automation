@@ -531,7 +531,11 @@ def login_to_naukri(driver):
                                 continue
                         
                         # Check if OTP is provided via environment variable
-                        otp_code = os.getenv("NAUKRI_OTP", "")
+                        if Config is None:
+                            otp_code = os.getenv("NAUKRI_OTP", "")
+                        else:
+                            otp_code = Config.NAUKRI_OTP
+                        
                         if otp_code and otp_field:
                             logger.info("OTP code provided via environment variable, entering...")
                             otp_field.clear()
