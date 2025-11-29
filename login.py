@@ -53,28 +53,92 @@ def login_to_naukri(driver):
         logger.info("Navigating to Naukri login page...")
         driver.get("https://www.naukri.com/nlogin/login")
         
-        # Wait for login form to load
-        wait = WebDriverWait(driver, 20)
+        # Wait for page to load and handle any initial popups
+        time.sleep(3)
+        handle_popups(driver)
         
-        # Find and fill email
+        # Wait for login form to load with longer timeout
+        wait = WebDriverWait(driver, 30)
+        
+        # Find and fill email - try multiple selectors
         logger.info("Entering email...")
-        email_field = wait.until(
-            EC.presence_of_element_located((By.ID, "usernameField"))
-        )
+        email_field = None
+        email_selectors = [
+            (By.ID, "usernameField"),
+            (By.NAME, "username"),
+            (By.XPATH, "//input[@type='text' and contains(@placeholder, 'Email')]"),
+            (By.XPATH, "//input[@type='email']"),
+            (By.CSS_SELECTOR, "input[type='text'][name='username']"),
+        ]
+        
+        for selector_type, selector_value in email_selectors:
+            try:
+                email_field = wait.until(
+                    EC.presence_of_element_located((selector_type, selector_value))
+                )
+                logger.info(f"Found email field using {selector_type}: {selector_value}")
+                break
+            except TimeoutException:
+                continue
+        
+        if email_field is None:
+            logger.error("Could not find email field with any selector")
+            return False
         email_field.clear()
         if Config is None:
             raise ImportError("Config module not available")
         email_field.send_keys(Config.NAUKRI_EMAIL)
         
-        # Find and fill password
+        # Find and fill password - try multiple selectors
         logger.info("Entering password...")
-        password_field = driver.find_element(By.ID, "passwordField")
+        password_field = None
+        password_selectors = [
+            (By.ID, "passwordField"),
+            (By.NAME, "password"),
+            (By.XPATH, "//input[@type='password']"),
+            (By.CSS_SELECTOR, "input[type='password']"),
+        ]
+        
+        for selector_type, selector_value in password_selectors:
+            try:
+                password_field = wait.until(
+                    EC.presence_of_element_located((selector_type, selector_value))
+                )
+                logger.info(f"Found password field using {selector_type}: {selector_value}")
+                break
+            except TimeoutException:
+                continue
+        
+        if password_field is None:
+            logger.error("Could not find password field with any selector")
+            return False
+        
         password_field.clear()
         password_field.send_keys(Config.NAUKRI_PASSWORD)
         
-        # Click login button
+        # Click login button - try multiple selectors
         logger.info("Clicking login button...")
-        login_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Login')]")
+        login_button = None
+        login_selectors = [
+            (By.XPATH, "//button[contains(text(), 'Login')]"),
+            (By.XPATH, "//button[@type='submit']"),
+            (By.CSS_SELECTOR, "button[type='submit']"),
+            (By.XPATH, "//input[@type='submit']"),
+        ]
+        
+        for selector_type, selector_value in login_selectors:
+            try:
+                login_button = driver.find_element(selector_type, selector_value)
+                if login_button.is_displayed() and login_button.is_enabled():
+                    logger.info(f"Found login button using {selector_type}: {selector_value}")
+                    break
+            except:
+                continue
+        
+        if login_button is None:
+            logger.error("Could not find login button")
+            return False
+        
         login_button.click()
         
         # Wait for navigation after login
