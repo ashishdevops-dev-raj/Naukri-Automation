@@ -230,45 +230,102 @@ def login_to_naukri(driver):
             logger.error("Could not find login button")
             return False
         
-        # Scroll to button to ensure it's visible
-        driver.execute_script("arguments[0].scrollIntoView(true);", login_button)
-        time.sleep(1)
+        # Try multiple methods to submit the form
+        logger.info("Submitting login form...")
         
-        # Click login button
+        # Method 1: Try pressing Enter on password field
         try:
-            login_button.click()
+            logger.info("Trying Enter key on password field...")
+            password_field.send_keys(Keys.RETURN)
+            time.sleep(3)
         except Exception as e:
-            logger.warning(f"Regular click failed: {e}, trying JavaScript click")
-            driver.execute_script("arguments[0].click();", login_button)
+            logger.warning(f"Enter key method failed: {e}")
+        
+        # Method 2: Try clicking the button
+        try:
+            # Scroll to button to ensure it's visible
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", login_button)
+            time.sleep(1)
+            
+            # Check if button is actually clickable
+            if login_button.is_displayed() and login_button.is_enabled():
+                logger.info("Button is visible and enabled, clicking...")
+                login_button.click()
+            else:
+                logger.warning("Button not clickable, trying JavaScript click...")
+                driver.execute_script("arguments[0].click();", login_button)
+        except Exception as e:
+            logger.warning(f"Button click failed: {e}, trying form submit...")
+            # Method 3: Try submitting the form directly
+            try:
+                form = password_field.find_element(By.XPATH, "./ancestor::form")
+                driver.execute_script("arguments[0].submit();", form)
+            except:
+                logger.warning("Form submit also failed")
         
         # Wait for navigation or error message
         logger.info("Waiting for login to process...")
-        time.sleep(3)
+        time.sleep(5)  # Increased wait time
         
-        # Check for error messages first
+        # Check for error messages first - be more thorough
         error_found = False
+        error_messages = []
+        
         error_selectors = [
             "//div[contains(@class, 'error')]",
             "//span[contains(@class, 'error')]",
+            "//div[contains(@class, 'alert')]",
+            "//div[contains(@class, 'warning')]",
+            "//div[contains(@class, 'message')]",
+            "//span[contains(@class, 'message')]",
             "//div[contains(text(), 'Invalid')]",
             "//div[contains(text(), 'incorrect')]",
             "//div[contains(text(), 'wrong')]",
+            "//div[contains(text(), 'failed')]",
+            "//div[contains(text(), 'error')]",
+            "//*[contains(@id, 'error')]",
+            "//*[contains(@class, 'invalid')]",
         ]
         
         for error_selector in error_selectors:
             try:
-                error_elem = driver.find_elements(By.XPATH, error_selector)
-                if error_elem:
-                    error_text = error_elem[0].text
-                    if error_text:
-                        logger.error(f"Login error detected: {error_text}")
-                        error_found = True
-                        break
+                error_elems = driver.find_elements(By.XPATH, error_selector)
+                for error_elem in error_elems:
+                    try:
+                        error_text = error_elem.text.strip()
+                        if error_text and len(error_text) > 0:
+                            error_messages.append(error_text)
+                            logger.error(f"Login error detected: {error_text}")
+                            error_found = True
+                    except:
+                        continue
             except:
                 continue
         
+        # Also check page source for common error keywords
+        try:
+            page_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+            error_keywords = ['invalid', 'incorrect', 'wrong password', 'wrong email', 'login failed', 'authentication failed']
+            for keyword in error_keywords:
+                if keyword in page_text:
+                    logger.error(f"Error keyword found in page: '{keyword}'")
+                    error_found = True
+                    break
+        except:
+            pass
+        
         if error_found:
+            logger.error(f"Login failed with errors: {error_messages}")
             return False
+        
+        # Check for CAPTCHA
+        try:
+            captcha_elements = driver.find_elements(By.XPATH, "//*[contains(@class, 'captcha') or contains(@id, 'captcha') or contains(text(), 'CAPTCHA')]")
+            if captcha_elements:
+                logger.error("CAPTCHA detected! Manual intervention required.")
+                return False
+        except:
+            pass
         
         # Handle any popups that appear after login
         logger.info("Checking for popups...")
