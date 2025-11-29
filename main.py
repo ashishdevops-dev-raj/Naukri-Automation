@@ -60,29 +60,46 @@ def setup_driver():
         # Fix for webdriver-manager issue: find the actual chromedriver executable
         # webdriver-manager sometimes returns a directory instead of the executable
         if os.path.isdir(driver_path):
-            # Look for chromedriver executable in the directory
+            # Look for chromedriver executable in the directory - be very specific
             possible_paths = [
-                os.path.join(driver_path, "chromedriver"),
                 os.path.join(driver_path, "chromedriver-linux64", "chromedriver"),
-                os.path.join(driver_path, "chromedriver.exe"),
+                os.path.join(driver_path, "chromedriver"),
             ]
             
-            # Also search recursively
-            chromedriver_files = glob.glob(os.path.join(driver_path, "**/chromedriver"), recursive=True)
-            possible_paths.extend(chromedriver_files)
-            
-            # Find the first existing file that's not a directory and doesn't have unwanted extensions
+            # Check each path - must be a file, executable, and NOT contain NOTICES
+            found = False
             for path in possible_paths:
-                if os.path.isfile(path) and not path.endswith('.txt') and not path.endswith('.md') and 'NOTICES' not in path:
-                    driver_path = path
-                    break
-            else:
-                # If we still haven't found it, try to find any executable file
+                if os.path.isfile(path) and 'NOTICES' not in path:
+                    # Verify it's actually executable (check if it's a binary file)
+                    try:
+                        # On Linux, check if file is executable
+                        if os.access(path, os.X_OK):
+                            driver_path = path
+                            found = True
+                            break
+                    except:
+                        pass
+            
+            # If still not found, search recursively but be very careful
+            if not found:
                 all_files = glob.glob(os.path.join(driver_path, "**/*"), recursive=True)
                 for file_path in all_files:
-                    if os.path.isfile(file_path) and 'chromedriver' in file_path.lower() and 'NOTICES' not in file_path and not file_path.endswith('.txt'):
-                        driver_path = file_path
-                        break
+                    # Must be a file, named exactly chromedriver (no extension), and executable
+                    if (os.path.isfile(file_path) and 
+                        os.path.basename(file_path) == "chromedriver" and
+                        'NOTICES' not in file_path and
+                        not file_path.endswith('.txt') and
+                        not file_path.endswith('.md')):
+                        try:
+                            if os.access(file_path, os.X_OK):
+                                driver_path = file_path
+                                found = True
+                                break
+                        except:
+                            pass
+            
+            if not found:
+                raise FileNotFoundError(f"Could not find ChromeDriver executable in {driver_path}")
         
         # Ensure the driver is executable (Linux/Mac)
         if os.path.isfile(driver_path) and os.name != 'nt':
