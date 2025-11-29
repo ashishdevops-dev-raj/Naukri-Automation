@@ -1,4 +1,1 @@
-"""
-Utils package for Naukri Automation Bot
-"""
-
+# Utils package
