@@ -55,23 +55,40 @@ def setup_driver():
             chrome_options.add_argument("--disable-gpu")
         
         # Get ChromeDriver path and ensure we use the correct executable
-        driver_path = ChromeDriverManager().install()
+        initial_path = ChromeDriverManager().install()
+        logger.info(f"ChromeDriverManager returned: {initial_path} (isdir: {os.path.isdir(initial_path)}, isfile: {os.path.isfile(initial_path)})")
         
         # Fix for webdriver-manager issue: find the actual chromedriver executable
-        # webdriver-manager sometimes returns a directory instead of the executable
-        if os.path.isdir(driver_path):
-            logger.info(f"ChromeDriverManager returned directory: {driver_path}")
+        # webdriver-manager sometimes returns a directory or the wrong file
+        driver_path = initial_path
+        
+        # If it's a file but contains NOTICES, it's the wrong file - need to search
+        if os.path.isfile(initial_path) and ('NOTICES' in initial_path or 'THIRD_PARTY' in initial_path):
+            logger.warning(f"ChromeDriverManager returned wrong file: {initial_path}, searching for correct executable...")
+            # Get the parent directory to search in
+            search_dir = os.path.dirname(initial_path)
+            driver_path = None
+        elif os.path.isdir(initial_path):
+            search_dir = initial_path
+            driver_path = None
+        else:
+            # It's a file and seems correct, use it
+            search_dir = None
+        
+        # If we need to search for the correct executable
+        if search_dir:
+            logger.info(f"Searching for ChromeDriver in: {search_dir}")
             
             # Look for chromedriver executable in the directory - be very specific
             possible_paths = [
-                os.path.join(driver_path, "chromedriver-linux64", "chromedriver"),
-                os.path.join(driver_path, "chromedriver"),
+                os.path.join(search_dir, "chromedriver-linux64", "chromedriver"),
+                os.path.join(search_dir, "chromedriver"),
             ]
             
             # Check each path - must be a file, executable, and NOT contain NOTICES
             found = False
             for path in possible_paths:
-                if os.path.isfile(path) and 'NOTICES' not in path and os.path.basename(path) == "chromedriver":
+                if os.path.isfile(path) and 'NOTICES' not in path and 'THIRD_PARTY' not in path and os.path.basename(path) == "chromedriver":
                     # Verify it's actually executable
                     try:
                         if os.access(path, os.X_OK):
@@ -85,7 +102,7 @@ def setup_driver():
             # If still not found, search recursively but be very careful
             if not found:
                 logger.info("Searching recursively for chromedriver...")
-                all_files = glob.glob(os.path.join(driver_path, "**/*"), recursive=True)
+                all_files = glob.glob(os.path.join(search_dir, "**/*"), recursive=True)
                 for file_path in all_files:
                     basename = os.path.basename(file_path)
                     # Must be a file, named exactly "chromedriver" (no extension, no prefix), and executable
@@ -106,11 +123,15 @@ def setup_driver():
             
             if not found:
                 # List all files for debugging
-                all_files = glob.glob(os.path.join(driver_path, "**/*"), recursive=True)
-                logger.error(f"Available files in {driver_path}:")
-                for f in all_files[:10]:  # Show first 10 files
-                    logger.error(f"  - {f} (basename: {os.path.basename(f)})")
-                raise FileNotFoundError(f"Could not find ChromeDriver executable in {driver_path}")
+                all_files = glob.glob(os.path.join(search_dir, "**/*"), recursive=True)
+                logger.error(f"Available files in {search_dir}:")
+                for f in all_files[:20]:  # Show first 20 files
+                    logger.error(f"  - {f} (basename: {os.path.basename(f)}, isfile: {os.path.isfile(f)})")
+                raise FileNotFoundError(f"Could not find ChromeDriver executable in {search_dir}")
+        
+        # Final validation - ensure we don't have the wrong file
+        if 'NOTICES' in driver_path or 'THIRD_PARTY' in driver_path:
+            raise ValueError(f"Invalid ChromeDriver path detected: {driver_path}")
         
         # Ensure the driver is executable (Linux/Mac)
         if os.path.isfile(driver_path) and os.name != 'nt':
