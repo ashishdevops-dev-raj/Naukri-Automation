@@ -9,16 +9,34 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-from config import Config
-from utils.logger import setup_logger
-from utils.helpers import handle_popups
-
 try:
+    from config import Config
+    from utils.logger import setup_logger
+    from utils.helpers import handle_popups
     logger = setup_logger(__name__)
-except Exception:
+except ImportError as e:
+    import logging
+    import os
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Import warning: {e}. Using basic logging.")
+    # Try to import Config and helpers separately
+    try:
+        from config import Config
+    except ImportError:
+        logger.error("Failed to import Config")
+        Config = None
+    try:
+        from utils.helpers import handle_popups
+    except ImportError:
+        logger.error("Failed to import handle_popups")
+        def handle_popups(driver, max_attempts=3):
+            pass
+except Exception as e:
     import logging
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
+    logger.error(f"Unexpected error during import: {e}")
 
 
 def login_to_naukri(driver):
@@ -44,6 +62,8 @@ def login_to_naukri(driver):
             EC.presence_of_element_located((By.ID, "usernameField"))
         )
         email_field.clear()
+        if Config is None:
+            raise ImportError("Config module not available")
         email_field.send_keys(Config.NAUKRI_EMAIL)
         
         # Find and fill password
