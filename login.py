@@ -230,29 +230,104 @@ def login_to_naukri(driver):
             logger.error("Could not find login button")
             return False
         
-        login_button.click()
+        # Scroll to button to ensure it's visible
+        driver.execute_script("arguments[0].scrollIntoView(true);", login_button)
+        time.sleep(1)
         
-        # Wait for navigation after login
-        time.sleep(5)
+        # Click login button
+        try:
+            login_button.click()
+        except Exception as e:
+            logger.warning(f"Regular click failed: {e}, trying JavaScript click")
+            driver.execute_script("arguments[0].click();", login_button)
+        
+        # Wait for navigation or error message
+        logger.info("Waiting for login to process...")
+        time.sleep(3)
+        
+        # Check for error messages first
+        error_found = False
+        error_selectors = [
+            "//div[contains(@class, 'error')]",
+            "//span[contains(@class, 'error')]",
+            "//div[contains(text(), 'Invalid')]",
+            "//div[contains(text(), 'incorrect')]",
+            "//div[contains(text(), 'wrong')]",
+        ]
+        
+        for error_selector in error_selectors:
+            try:
+                error_elem = driver.find_elements(By.XPATH, error_selector)
+                if error_elem:
+                    error_text = error_elem[0].text
+                    if error_text:
+                        logger.error(f"Login error detected: {error_text}")
+                        error_found = True
+                        break
+            except:
+                continue
+        
+        if error_found:
+            return False
         
         # Handle any popups that appear after login
         logger.info("Checking for popups...")
         handle_popups(driver)
+        time.sleep(2)
         
-        # Verify login success by checking for dashboard elements
-        try:
-            wait.until(
-                EC.presence_of_element_located((By.XPATH, "//a[contains(@href, 'myHome')]"))
-            )
+        # Wait longer for navigation
+        time.sleep(3)
+        
+        # Check current URL
+        current_url_after = driver.current_url
+        logger.info(f"URL after login attempt: {current_url_after}")
+        
+        # Verify login success by checking for dashboard elements or URL change
+        login_success = False
+        
+        # Check if URL changed (not on login page anymore)
+        if "nlogin" not in current_url_after and "login" not in current_url_after.lower():
+            logger.info("URL changed - likely logged in successfully")
+            login_success = True
+        else:
+            # Try to find dashboard elements
+            dashboard_selectors = [
+                (By.XPATH, "//a[contains(@href, 'myHome')]"),
+                (By.XPATH, "//a[contains(@href, 'dashboard')]"),
+                (By.XPATH, "//a[contains(text(), 'My Profile')]"),
+                (By.XPATH, "//a[contains(text(), 'Profile')]"),
+                (By.XPATH, "//div[contains(@class, 'dashboard')]"),
+            ]
+            
+            for selector_type, selector_value in dashboard_selectors:
+                try:
+                    short_wait = WebDriverWait(driver, 5)
+                    short_wait.until(
+                        EC.presence_of_element_located((selector_type, selector_value))
+                    )
+                    logger.info(f"Found dashboard element: {selector_type}={selector_value}")
+                    login_success = True
+                    break
+                except TimeoutException:
+                    continue
+        
+        if login_success:
             logger.info("Login verification successful")
             return True
-        except TimeoutException:
+        else:
             # Check if still on login page (login failed)
-            if "nlogin" in driver.current_url:
+            if "nlogin" in current_url_after or "login" in current_url_after.lower():
                 logger.error("Login failed - still on login page")
+                # Try to get any error message
+                try:
+                    page_text = driver.find_element(By.TAG_NAME, "body").text
+                    if "invalid" in page_text.lower() or "incorrect" in page_text.lower():
+                        logger.error("Credentials might be incorrect")
+                except:
+                    pass
                 return False
             # Might have logged in but different page structure
-            logger.warning("Could not verify login, but URL changed")
+            logger.warning("Could not verify login, but URL changed - assuming success")
             return True
             
     except TimeoutException as e:
