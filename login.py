@@ -53,36 +53,80 @@ def login_to_naukri(driver):
         logger.info("Navigating to Naukri login page...")
         driver.get("https://www.naukri.com/nlogin/login")
         
-        # Wait for page to load and handle any initial popups
-        time.sleep(3)
-        handle_popups(driver)
+        # Wait for page to fully load (including JavaScript)
+        logger.info("Waiting for page to load...")
+        time.sleep(5)
         
-        # Wait for login form to load with longer timeout
+        # Check current URL
+        current_url = driver.current_url
+        logger.info(f"Current URL after navigation: {current_url}")
+        
+        # Handle any initial popups
+        handle_popups(driver)
+        time.sleep(2)
+        
+        # Wait for page to be ready
         wait = WebDriverWait(driver, 30)
         
-        # Find and fill email - try multiple selectors
+        # Wait for page to be interactive
+        try:
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            logger.info("Page loaded completely")
+        except:
+            logger.warning("Page ready state check failed, continuing anyway")
+        
+        # Find and fill email - try multiple selectors with visibility check
         logger.info("Entering email...")
         email_field = None
         email_selectors = [
             (By.ID, "usernameField"),
             (By.NAME, "username"),
+            (By.XPATH, "//input[@id='usernameField']"),
+            (By.XPATH, "//input[@name='username']"),
             (By.XPATH, "//input[@type='text' and contains(@placeholder, 'Email')]"),
+            (By.XPATH, "//input[@type='text' and contains(@placeholder, 'email')]"),
             (By.XPATH, "//input[@type='email']"),
+            (By.XPATH, "//input[contains(@class, 'username')]"),
+            (By.XPATH, "//input[contains(@class, 'email')]"),
             (By.CSS_SELECTOR, "input[type='text'][name='username']"),
+            (By.CSS_SELECTOR, "input#usernameField"),
+            (By.CSS_SELECTOR, "input[name='username']"),
         ]
         
         for selector_type, selector_value in email_selectors:
             try:
+                # Try visibility check first (more reliable)
                 email_field = wait.until(
-                    EC.presence_of_element_located((selector_type, selector_value))
+                    EC.visibility_of_element_located((selector_type, selector_value))
                 )
                 logger.info(f"Found email field using {selector_type}: {selector_value}")
                 break
             except TimeoutException:
-                continue
+                try:
+                    # Fallback to presence check
+                    email_field = wait.until(
+                        EC.presence_of_element_located((selector_type, selector_value))
+                    )
+                    logger.info(f"Found email field (presence) using {selector_type}: {selector_value}")
+                    break
+                except TimeoutException:
+                    continue
         
         if email_field is None:
             logger.error("Could not find email field with any selector")
+            logger.error(f"Page title: {driver.title}")
+            logger.error(f"Page URL: {driver.current_url}")
+            # Try to find any input fields for debugging
+            try:
+                all_inputs = driver.find_elements(By.TAG_NAME, "input")
+                logger.error(f"Found {len(all_inputs)} input elements on page")
+                for i, inp in enumerate(all_inputs[:5]):  # Show first 5
+                    try:
+                        logger.error(f"  Input {i}: type={inp.get_attribute('type')}, id={inp.get_attribute('id')}, name={inp.get_attribute('name')}, placeholder={inp.get_attribute('placeholder')}")
+                    except:
+                        pass
+            except:
+                pass
             return False
         email_field.clear()
         if Config is None:
