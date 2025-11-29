@@ -241,6 +241,61 @@ def login_to_naukri(driver):
         
         logger.info("Password entered")
         
+        # Check for "Remember this device" or "Trust this device" checkbox BEFORE submitting
+        # This might help bypass OTP requirement
+        logger.info("Checking for 'Remember this device' or 'Trust this device' checkbox...")
+        remember_checkbox = None
+        remember_selectors = [
+            (By.XPATH, "//input[@type='checkbox' and contains(@id, 'remember')]"),
+            (By.XPATH, "//input[@type='checkbox' and contains(@name, 'remember')]"),
+            (By.XPATH, "//input[@type='checkbox' and contains(@class, 'remember')]"),
+            (By.XPATH, "//input[@type='checkbox' and contains(@id, 'trust')]"),
+            (By.XPATH, "//input[@type='checkbox' and contains(@name, 'trust')]"),
+            (By.XPATH, "//input[@type='checkbox' and contains(@class, 'trust')]"),
+            (By.XPATH, "//input[@type='checkbox' and contains(@id, 'device')]"),
+            (By.XPATH, "//input[@type='checkbox' and contains(@name, 'device')]"),
+            (By.XPATH, "//label[contains(text(), 'Remember')]/input[@type='checkbox']"),
+            (By.XPATH, "//label[contains(text(), 'Trust')]/input[@type='checkbox']"),
+            (By.XPATH, "//label[contains(text(), 'remember')]/input[@type='checkbox']"),
+            (By.XPATH, "//label[contains(text(), 'trust')]/input[@type='checkbox']"),
+            (By.XPATH, "//input[@type='checkbox' and following-sibling::text()[contains(., 'Remember')]]"),
+            (By.XPATH, "//input[@type='checkbox' and following-sibling::text()[contains(., 'Trust')]]"),
+            (By.XPATH, "//input[@type='checkbox' and preceding-sibling::text()[contains(., 'Remember')]]"),
+            (By.XPATH, "//input[@type='checkbox' and preceding-sibling::text()[contains(., 'Trust')]]"),
+        ]
+        
+        for selector_type, selector_value in remember_selectors:
+            try:
+                checkboxes = driver.find_elements(selector_type, selector_value)
+                for checkbox in checkboxes:
+                    if checkbox.is_displayed():
+                        remember_checkbox = checkbox
+                        logger.info(f"Found remember/trust checkbox: {selector_type}={selector_value}")
+                        break
+                if remember_checkbox:
+                    break
+            except:
+                continue
+        
+        if remember_checkbox:
+            try:
+                # Check if it's already checked
+                if not remember_checkbox.is_selected():
+                    logger.info("Checking 'Remember this device' checkbox...")
+                    # Scroll into view
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", remember_checkbox)
+                    time.sleep(0.5)
+                    # Click the checkbox
+                    remember_checkbox.click()
+                    time.sleep(1)
+                    logger.info("Remember device checkbox checked successfully")
+                else:
+                    logger.info("Remember device checkbox already checked")
+            except Exception as e:
+                logger.warning(f"Could not check remember device checkbox: {e}")
+        else:
+            logger.info("No 'Remember this device' checkbox found on login form")
+        
         # Check if form is valid before submitting
         try:
             form_valid = driver.execute_script("""
