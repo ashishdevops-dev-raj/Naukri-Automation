@@ -5,6 +5,7 @@ Handles orchestration of login, search, and apply operations
 
 import os
 import sys
+import glob
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -57,7 +58,6 @@ def setup_driver():
         driver_path = ChromeDriverManager().install()
         
         # Fix for webdriver-manager issue: find the actual chromedriver executable
-        import glob
         if os.path.isdir(driver_path):
             # If it's a directory, look for the chromedriver executable
             chromedriver_files = glob.glob(os.path.join(driver_path, "**/chromedriver"), recursive=True)
