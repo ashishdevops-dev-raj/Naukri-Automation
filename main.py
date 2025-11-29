@@ -105,15 +105,20 @@ def setup_driver():
                 all_files = glob.glob(os.path.join(search_dir, "**/*"), recursive=True)
                 for file_path in all_files:
                     basename = os.path.basename(file_path)
-                    # Must be a file, named exactly "chromedriver" (no extension, no prefix), and executable
+                    # Must be a file, named exactly "chromedriver" (no extension, no prefix)
                     if (os.path.isfile(file_path) and 
                         basename == "chromedriver" and  # Exact match, no extensions
                         'NOTICES' not in file_path and
                         'THIRD_PARTY' not in file_path and
+                        'LICENSE' not in file_path and
                         not file_path.endswith('.txt') and
                         not file_path.endswith('.md')):
                         try:
-                            if os.access(file_path, os.X_OK):
+                            # Make it executable if it's not already
+                            if os.name != 'nt':
+                                os.chmod(file_path, 0o755)
+                            # Check if it's now executable (or on Windows, just verify it exists)
+                            if os.name == 'nt' or os.access(file_path, os.X_OK):
                                 driver_path = file_path
                                 found = True
                                 logger.info(f"Found ChromeDriver recursively at: {driver_path}")
