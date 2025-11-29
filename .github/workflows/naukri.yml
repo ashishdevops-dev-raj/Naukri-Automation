@@ -38,7 +38,7 @@ jobs:
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
-          SEARCH_KEYWORD: ${{ vars.SEARCH_KEYWORD || 'Python Developer' }}
+          SEARCH_KEYWORD: ${{ vars.SEARCH_KEYWORD || 'devops' }}
           SEARCH_LOCATION: ${{ vars.SEARCH_LOCATION || 'Bangalore' }}
           APPLY_LIMIT: ${{ vars.APPLY_LIMIT || '5' }}
         run: |
