@@ -116,71 +116,67 @@ def save_cookies(driver):
 def setup_driver():
     """Initialize and configure Chrome WebDriver using undetected_chromedriver if available"""
     try:
+        # Initialize chrome_options for fallback
+        chrome_options = Options()
+        
         # Use undetected_chromedriver if available (better bot detection bypass)
         if UC_AVAILABLE:
             logger.info("Using undetected_chromedriver for better bot detection bypass")
-            options = uc.ChromeOptions()
-            
-            # Basic options - minimal to avoid detection
-            options.add_argument("--start-maximized")
-            options.add_argument("--disable-blink-features=AutomationControlled")
-            options.add_argument("--disable-infobars")
-            options.add_argument("--no-first-run")
-            options.add_argument("--no-default-browser-check")
-            options.add_argument("--disable-dev-shm-usage")
-            
-            # For CI environments, use headless but with better stealth
-            if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
-                # Try without headless first - undetected_chromedriver works better non-headless
-                # But if we must use headless, use the new headless mode
-                logger.info("Running in CI environment - using headless mode with stealth")
-                options.add_argument("--headless=new")
-                options.add_argument("--no-sandbox")
-                options.add_argument("--disable-gpu")
-                options.add_argument("--window-size=1920,1080")
-                options.add_argument("--disable-extensions")
-                options.add_argument("--disable-plugins-discovery")
-                options.add_argument("--disable-web-security")
-                options.add_argument("--allow-running-insecure-content")
-            
-            # Additional preferences
-            prefs = {
-                "credentials_enable_service": False,
-                "profile.password_manager_enabled": False,
-                "profile.default_content_setting_values.notifications": 2,
-                "profile.default_content_settings.popups": 0,
-                "profile.managed_default_content_settings.images": 1
-            }
-            options.add_experimental_option("prefs", prefs)
-            
-            # Exclude automation switches
-            options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-            options.add_experimental_option('useAutomationExtension', False)
-            
-            # Create driver with undetected_chromedriver - use_main=True for better compatibility
             try:
+                options = uc.ChromeOptions()
+                
+                # Basic options - minimal to avoid detection
+                options.add_argument("--start-maximized")
+                options.add_argument("--disable-blink-features=AutomationControlled")
+                options.add_argument("--disable-infobars")
+                options.add_argument("--no-first-run")
+                options.add_argument("--no-default-browser-check")
+                options.add_argument("--disable-dev-shm-usage")
+                
+                # For CI environments, use headless but with better stealth
+                if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
+                    logger.info("Running in CI environment - using headless mode with stealth")
+                    options.add_argument("--headless=new")
+                    options.add_argument("--no-sandbox")
+                    options.add_argument("--disable-gpu")
+                    options.add_argument("--window-size=1920,1080")
+                    options.add_argument("--disable-extensions")
+                
+                # Additional preferences (undetected_chromedriver handles these differently)
+                prefs = {
+                    "credentials_enable_service": False,
+                    "profile.password_manager_enabled": False,
+                    "profile.default_content_setting_values.notifications": 2
+                }
+                options.add_experimental_option("prefs", prefs)
+                
+                # Note: Don't use excludeSwitches with undetected_chromedriver - it handles this internally
+                # options.add_experimental_option("excludeSwitches", ["enable-automation"])  # Not compatible
+                
+                # Create driver with undetected_chromedriver
                 driver = uc.Chrome(options=options, use_subprocess=True, version_main=None)
                 
                 # Additional stealth measures after driver creation
-                driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
-                    'source': '''
-                        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                        Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-                        Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-                        window.chrome = { runtime: {} };
-                        Object.defineProperty(navigator, 'permissions', {get: () => ({query: () => Promise.resolve({state: 'granted'})})});
-                    '''
-                })
+                try:
+                    driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+                        'source': '''
+                            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+                            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+                            window.chrome = { runtime: {} };
+                        '''
+                    })
+                except:
+                    pass  # CDP commands may not work in all environments
                 
                 logger.info("WebDriver initialized successfully with undetected_chromedriver")
                 return driver
             except Exception as e:
                 logger.warning(f"Failed to create undetected_chromedriver: {e}, falling back to regular selenium")
-                # Fall through to regular selenium
-        else:
-            # Fallback to regular Selenium WebDriver
-            logger.info("Using regular Selenium WebDriver (undetected_chromedriver not available)")
-            chrome_options = Options()
+                # Continue to regular selenium fallback
+        
+        # Fallback to regular Selenium WebDriver
+        logger.info("Using regular Selenium WebDriver")
         
         # Anti-detection measures
         chrome_options.add_argument("--start-maximized")
