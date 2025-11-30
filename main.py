@@ -6,12 +6,29 @@ Handles orchestration of login, search, and apply operations
 import os
 import sys
 import glob
+import json
+import time
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import TimeoutException, WebDriverException
+
+# Try to import undetected_chromedriver, fallback to regular selenium if not available
+try:
+    import undetected_chromedriver as uc
+    UC_AVAILABLE = True
+except ImportError:
+    UC_AVAILABLE = False
+    logger_temp = None
+    try:
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger_temp = logging.getLogger(__name__)
+        logger_temp.warning("undetected_chromedriver not available, using regular selenium")
+    except:
+        pass
 
 try:
     from login import login_to_naukri
@@ -37,11 +54,104 @@ except Exception as e:
     import sys
     sys.exit(1)
 
+COOKIES_FILE = "cookies.json"
+
+def load_cookies(driver):
+    """Load saved cookies to bypass login"""
+    if not os.path.exists(COOKIES_FILE):
+        logger.info("⚠️ No cookies.json found, login will be required")
+        return False
+    
+    try:
+        with open(COOKIES_FILE, "r") as f:
+            cookies = json.load(f)
+        
+        # Navigate to Naukri first to set cookies
+        driver.get("https://www.naukri.com")
+        time.sleep(2)
+        
+        # Add cookies
+        for cookie in cookies:
+            try:
+                driver.add_cookie(cookie)
+            except Exception as e:
+                logger.debug(f"Could not add cookie: {e}")
+        
+        # Refresh to apply cookies
+        driver.refresh()
+        time.sleep(3)
+        
+        # Check if we're logged in by checking URL or page content
+        current_url = driver.current_url
+        if "nlogin" not in current_url and "login" not in current_url.lower():
+            logger.info("✅ Logged in using saved cookies!")
+            return True
+        
+        # Also check for dashboard elements
+        try:
+            from selenium.webdriver.common.by import By
+            dashboard_indicators = driver.find_elements(By.XPATH, "//a[contains(@href, 'myHome') or contains(@href, 'mnjuser')]")
+            if dashboard_indicators:
+                logger.info("✅ Logged in using saved cookies!")
+                return True
+        except:
+            pass
+        
+        logger.warning("❌ Cookies expired or invalid")
+        return False
+    except Exception as e:
+        logger.warning(f"Error loading cookies: {e}")
+        return False
+
+def save_cookies(driver):
+    """Save cookies after successful login"""
+    try:
+        cookies = driver.get_cookies()
+        with open(COOKIES_FILE, "w") as f:
+            json.dump(cookies, f)
+        logger.info("✅ Cookies saved successfully!")
+    except Exception as e:
+        logger.warning(f"Error saving cookies: {e}")
 
 def setup_driver():
-    """Initialize and configure Chrome WebDriver"""
+    """Initialize and configure Chrome WebDriver using undetected_chromedriver if available"""
     try:
-        chrome_options = Options()
+        # Use undetected_chromedriver if available (better bot detection bypass)
+        if UC_AVAILABLE:
+            logger.info("Using undetected_chromedriver for better bot detection bypass")
+            options = uc.ChromeOptions()
+            
+            # Basic options
+            options.add_argument("--start-maximized")
+            options.add_argument("--disable-blink-features=AutomationControlled")
+            options.add_argument("--disable-infobars")
+            options.add_argument("--no-first-run")
+            options.add_argument("--no-default-browser-check")
+            
+            # Enable headless mode for CI environments (GitHub Actions)
+            if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
+                options.add_argument("--headless=new")
+                options.add_argument("--no-sandbox")
+                options.add_argument("--disable-dev-shm-usage")
+                options.add_argument("--disable-gpu")
+                options.add_argument("--window-size=1920,1080")
+            
+            # Additional preferences
+            prefs = {
+                "credentials_enable_service": False,
+                "profile.password_manager_enabled": False,
+                "profile.default_content_setting_values.notifications": 2
+            }
+            options.add_experimental_option("prefs", prefs)
+            
+            # Create driver with undetected_chromedriver
+            driver = uc.Chrome(options=options, version_main=None)
+            logger.info("WebDriver initialized successfully with undetected_chromedriver")
+            return driver
+        else:
+            # Fallback to regular Selenium WebDriver
+            logger.info("Using regular Selenium WebDriver (undetected_chromedriver not available)")
+            chrome_options = Options()
         
         # Anti-detection measures
         chrome_options.add_argument("--start-maximized")
@@ -216,14 +326,22 @@ def main():
         # Setup driver
         driver = setup_driver()
         
-        # Step 1: Login
-        logger.info("Step 1: Logging in to Naukri...")
-        if not login_to_naukri(driver):
-            logger.error("Login failed. Exiting...")
-            take_screenshot(driver, "login_failed")
-            sys.exit(1)
-        
-        logger.info("Login successful!")
+        # Step 1: Try to load cookies first (bypass login)
+        logger.info("Step 1: Attempting to load saved cookies...")
+        if load_cookies(driver):
+            logger.info("✅ Login bypassed using saved cookies!")
+        else:
+            # Step 2: Login required
+            logger.info("Step 2: Logging in to Naukri...")
+            if not login_to_naukri(driver):
+                logger.error("Login failed. Exiting...")
+                take_screenshot(driver, "login_failed")
+                sys.exit(1)
+            
+            # Save cookies after successful login
+            logger.info("Saving cookies for future use...")
+            save_cookies(driver)
+            logger.info("Login successful!")
         
         # Step 2: Search for jobs
         logger.info("Step 2: Searching for jobs...")
