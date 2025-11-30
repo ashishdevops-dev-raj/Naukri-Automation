@@ -1,63 +1,42 @@
-name: Naukri Automation Bot
+# .github/workflows/scheduled-run.yml
+name: Naukri Auto Apply - scheduled
 
 on:
   schedule:
-    # Run daily at 9:00 AM IST (3:30 AM UTC)
-    - cron: "30 3 * * *"
+    # Runs daily at 9:00 IST (03:30 UTC)
+    - cron: '30 3 * * *'
   workflow_dispatch:
 
 jobs:
-  automate:
+  run:
     runs-on: ubuntu-latest
-    
+    env:
+      CI: "true"
+      GITHUB_ACTIONS: "true"
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
-      
+          python-version: "3.11"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
-      - name: Install Chrome and ChromeDriver
+
+      - name: Create cookies.json from secret
+        if: ${{ secrets.NAUKRI_COOKIES_JSON != '' }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget gnupg ca-certificates
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-          google-chrome --version
-      
-      - name: Run Naukri Automation Bot
+          echo "$NAUKRI_COOKIES_JSON" > cookies.json
+        env:
+          NAUKRI_COOKIES_JSON: ${{ secrets.NAUKRI_COOKIES_JSON }}
+
+      - name: Run the bot
+        run: |
+          python main.py
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
-          NAUKRI_OTP: ${{ secrets.NAUKRI_OTP || '' }}
-          SEARCH_KEYWORD: ${{ vars.SEARCH_KEYWORD || 'DevOps Engineer' }}
-          SEARCH_LOCATION: ${{ vars.SEARCH_LOCATION || 'Bangalore' }}
-          APPLY_LIMIT: ${{ vars.APPLY_LIMIT || '5' }}
-        run: |
-          python main.py
-        continue-on-error: true
-      
-      - name: Upload screenshots on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: error-screenshots
-          path: screenshots/
-          retention-days: 7
-      
-      - name: Upload logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: execution-logs
-          path: logs/
-          retention-days: 7
