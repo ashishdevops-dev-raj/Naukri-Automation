@@ -66,20 +66,74 @@ export NAUKRI_PASSWORD="your-password"
 python main.py
 ```
 
-3. Monitor logs:
+3. **First Run - Generate Cookies:**
+   - The bot will open a browser window
+   - Complete login manually (including OTP if required)
+   - Cookies will be saved to `cookies.json`
+   - Future runs will use cookies and skip login
+
+4. Monitor logs:
    - Console output for real-time updates
    - `logs/naukri_bot_YYYYMMDD.log` for detailed logs
    - `screenshots/` folder for error screenshots
 
+### 🔑 Cookie Management
+
+- **Cookies are saved automatically** after successful login
+- **Cookies expire** after some time (usually 7-30 days)
+- **To regenerate cookies:** Delete `cookies.json` and run the bot again
+- **Cookies bypass OTP:** Once saved, you won't need OTP for future runs
+
 ## 🔄 How to Run in GitHub Actions
+
+### ⚠️ Important: Cookie-Based Authentication (Recommended)
+
+Since Naukri blocks automated login in CI environments, **you must use cookies** to bypass login:
+
+#### Step 1: Generate Cookies Locally
+
+1. **Run the bot locally** (non-headless mode):
+   ```bash
+   python main.py
+   ```
+
+2. **Complete login manually** if OTP is required:
+   - The bot will open a browser window
+   - Enter your credentials
+   - Complete OTP verification if prompted
+   - Wait for successful login
+
+3. **Cookies will be saved** automatically to `cookies.json`
+
+#### Step 2: Add Cookies to GitHub
+
+**Option A: Commit cookies.json (Simple)**
+```bash
+git add cookies.json
+git commit -m "Add cookies for automated login"
+git push origin master
+```
+
+**Option B: Use GitHub Secrets (More Secure)**
+1. Go to **Settings** → **Secrets and variables** → **Actions**
+2. Create a new secret named `NAUKRI_COOKIES`
+3. Copy the entire contents of `cookies.json` and paste it as the secret value
+4. Update the workflow to load cookies from secrets (see below)
+
+#### Step 3: Verify Cookies Work
+
+- The bot will automatically use `cookies.json` if it exists
+- If cookies are valid, login will be bypassed entirely
+- If cookies expire, you'll need to regenerate them
 
 ### Setup Secrets
 
 1. Go to your GitHub repository
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
 3. Add the following secrets:
-   - `NAUKRI_EMAIL`: Your Naukri email
-   - `NAUKRI_PASSWORD`: Your Naukri password
+   - `NAUKRI_EMAIL`: Your Naukri email (required for cookie regeneration)
+   - `NAUKRI_PASSWORD`: Your Naukri password (required for cookie regeneration)
+   - `NAUKRI_OTP`: (Optional) OTP code if 2FA is enabled
 
 ### Workflow Configuration
 
