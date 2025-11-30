@@ -63,16 +63,44 @@ def login_to_naukri(driver):
         current_url = driver.current_url
         logger.info(f"Current URL after navigation: {current_url}")
         
+        # Wait a bit more for page to fully load
+        time.sleep(3)
+        
         # Check if we got blocked
         page_title = driver.title
+        page_source = driver.page_source.lower()
+        
         if "Access Denied" in page_title or "blocked" in page_title.lower() or "forbidden" in page_title.lower():
             logger.error(f"Access Denied! Page title: {page_title}")
             logger.error("Naukri is blocking automated access. This might be due to:")
             logger.error("1. Bot detection (headless browser detected)")
             logger.error("2. IP-based blocking")
             logger.error("3. Rate limiting")
-            logger.error("Consider running locally with a visible browser or using a proxy/VPN")
-            return False
+            logger.error("Attempting to bypass with additional stealth measures...")
+            
+            # Try to navigate again with a delay
+            time.sleep(5)
+            try:
+                driver.delete_all_cookies()
+                driver.get("https://www.naukri.com")
+                time.sleep(3)
+                driver.get("https://www.naukri.com/nlogin/login")
+                time.sleep(5)
+                
+                # Check again
+                page_title_retry = driver.title
+                if "Access Denied" not in page_title_retry and "blocked" not in page_title_retry.lower():
+                    logger.info("Successfully bypassed access denied on retry")
+                else:
+                    logger.error("Still blocked after retry. Consider using cookies or running locally first.")
+                    return False
+            except Exception as e:
+                logger.error(f"Retry failed: {e}")
+                return False
+        
+        # Also check page source for blocking messages
+        if "access denied" in page_source or "blocked" in page_source or "forbidden" in page_source:
+            logger.warning("Detected blocking message in page source, but continuing...")
         
         # Handle any initial popups
         handle_popups(driver)
