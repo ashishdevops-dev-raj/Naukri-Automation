@@ -199,10 +199,11 @@ def login_to_naukri(driver):
         
         logger.info(f"Email entered: {email[:3]}***{email[-5:]}")
         
-        # Find and fill password - try multiple selectors
+        # Find and fill password - try multiple selectors (simplified approach)
         logger.info("Entering password...")
         password_field = None
         password_selectors = [
+            (By.XPATH, "//input[@placeholder='Enter Password']"),  # Try this first (matches working code)
             (By.ID, "passwordField"),
             (By.NAME, "password"),
             (By.XPATH, "//input[@type='password']"),
@@ -223,23 +224,37 @@ def login_to_naukri(driver):
             logger.error("Could not find password field with any selector")
             return False
         
-        # Fill password field with proper events
-        password_field.clear()
-        password_field.click()
-        time.sleep(0.5)
-        
-        # Type password character by character
+        # Fill password field - simpler approach that works locally
         password = Config.NAUKRI_PASSWORD
-        for char in password:
-            password_field.send_keys(char)
-            time.sleep(0.05)
+        password_field.clear()
+        password_field.send_keys(password)
         
-        # Trigger input events
-        driver.execute_script("arguments[0].dispatchEvent(new Event('input', {bubbles: true}));", password_field)
-        driver.execute_script("arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", password_field)
-        time.sleep(1)
+        # Try submitting with Keys.RETURN first (simpler and works better)
+        logger.info("Submitting login form with Enter key...")
+        try:
+            password_field.send_keys(Keys.RETURN)
+            logger.info("Login submitted using Enter key")
+            time.sleep(3)
+            
+            # Check if login was successful by checking URL
+            current_url = driver.current_url
+            if "nlogin" not in current_url and "login" not in current_url.lower():
+                logger.info("Login successful - URL changed!")
+                return True
+            
+            # Also check for dashboard elements
+            try:
+                wait.until(EC.url_contains("naukri.com"))
+                # Additional check - make sure we're not on login page
+                if "nlogin" not in driver.current_url and "login" not in driver.current_url.lower():
+                    logger.info("Login successful - verified with URL check!")
+                    return True
+            except:
+                pass
+        except Exception as e:
+            logger.warning(f"Enter key submission failed: {e}, trying button click...")
         
-        logger.info("Password entered")
+        logger.info("Password entered, will try button click method...")
         
         # Check for "Remember this device" or "Trust this device" checkbox BEFORE submitting
         # This might help bypass OTP requirement
@@ -564,6 +579,17 @@ def login_to_naukri(driver):
                         logger.warning("OTP (One-Time Password) verification required!")
                         logger.info("Credentials are correct, but Naukri requires OTP verification")
                         
+                        # Wait a bit more for the OTP page to fully load
+                        logger.info("Waiting for OTP page to fully load...")
+                        time.sleep(3)
+                        
+                        # Refresh page content after wait
+                        try:
+                            page_text = driver.find_element(By.TAG_NAME, "body").text
+                            page_text_lower = page_text.lower()
+                        except:
+                            pass
+                        
                         # First, try to find and click "Skip" or "Remember this device" options
                         # Also check for links/buttons that might allow bypassing OTP
                         skip_options = [
@@ -661,6 +687,31 @@ def login_to_naukri(driver):
                             if "nlogin" not in final_url and "login" not in final_url.lower():
                                 logger.info("Login successful after skipping OTP!")
                                 return True
+                        
+                        # Log all clickable elements on the page for debugging
+                        logger.info("Logging all clickable elements on OTP page for debugging...")
+                        try:
+                            all_links = driver.find_elements(By.TAG_NAME, "a")
+                            all_buttons = driver.find_elements(By.TAG_NAME, "button")
+                            all_clickables = driver.find_elements(By.XPATH, "//*[@onclick or @role='button' or contains(@class, 'btn') or contains(@class, 'link')]")
+                            
+                            logger.info(f"Found {len(all_links)} links, {len(all_buttons)} buttons, {len(all_clickables)} clickable elements")
+                            
+                            # Log visible clickable elements
+                            visible_elements = []
+                            for elem in all_links + all_buttons + all_clickables:
+                                try:
+                                    if elem.is_displayed() and elem.text.strip():
+                                        visible_elements.append(f"  - {elem.tag_name}: '{elem.text.strip()}' (id={elem.get_attribute('id')}, class={elem.get_attribute('class')})")
+                                except:
+                                    pass
+                            
+                            if visible_elements:
+                                logger.info("Visible clickable elements on OTP page:")
+                                for elem_info in visible_elements[:20]:  # Show first 20
+                                    logger.info(elem_info)
+                        except Exception as e:
+                            logger.debug(f"Error logging clickable elements: {e}")
                         
                         logger.info("No skip option found, attempting to handle OTP...")
                         
