@@ -11,8 +11,22 @@ def login_with_cookies(driver):
     print("🔐 Logging using encoded cookies....")
 
     encoded = os.environ.get("NAUKRI_COOKIES_B64")
-    compressed = base64.b64decode(encoded)
-    cookies = json.loads(gzip.decompress(compressed))
+    if not encoded:
+        raise Exception("❌ NAUKRI_COOKIES_B64 environment variable not set")
+    
+    decoded = base64.b64decode(encoded)
+    
+    # Try to decompress with gzip, if it fails, assume it's plain JSON
+    try:
+        cookies = json.loads(gzip.decompress(decoded))
+        print("✅ Cookies decompressed with gzip")
+    except (gzip.BadGzipFile, OSError):
+        # If not gzipped, try to decode as plain JSON
+        try:
+            cookies = json.loads(decoded.decode('utf-8'))
+            print("✅ Cookies decoded as plain JSON")
+        except Exception as e:
+            raise Exception(f"❌ Failed to decode cookies: {e}")
 
     driver.get("https://www.naukri.com/")
     time.sleep(2)
