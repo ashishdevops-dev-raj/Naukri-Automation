@@ -1,7 +1,7 @@
 import os, json, gzip, base64, time
 
 def login_with_cookies(driver):
-    print("🔐 Logging using encoded cookies...")
+    print("🔐 Logging using encoded cookies....")
 
     encoded = os.environ.get("NAUKRI_COOKIES_B64")
     compressed = base64.b64decode(encoded)
