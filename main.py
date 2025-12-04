@@ -21,7 +21,7 @@ if __name__ == "__main__":
     login_with_cookies(driver)
     print("🎯 Cookie login success!")
 
-    # Update resume headline
+    # Update resume headline (optional - continue even if it fails)
     new_headline = (
         "With over +2 years of experience in Application Support and a Master's degree in Computer Applications, "
         "I am proficient in technologies such as Unix, SQL, Jenkins, Docker, Git, ITIL, and Shell Scripting, "
@@ -33,10 +33,10 @@ if __name__ == "__main__":
     try:
         # Navigate to profile page
         driver.get("https://www.naukri.com/mnjuser/profile")
-        time.sleep(3)
+        time.sleep(5)  # Increased wait time
         update_resume_headline(driver, wait, new_headline)
     except Exception as e:
-        print(f"⚠️ Could not update resume headline: {e}")
+        print(f"⚠️ Could not update resume headline: {str(e)[:100]}")
         print("Continuing with job search...")
 
     # Search for jobs
