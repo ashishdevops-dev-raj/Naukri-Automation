@@ -5,35 +5,57 @@ import time
 
 
 def login(driver, email, password):
-    driver.get("https://www.naukri.com/nlogin/login")
-
     wait = WebDriverWait(driver, 30)
 
-    # 🔹 Close popup if appears
+    # Force correct login URL to avoid redirect
+    driver.get("https://www.naukri.com/nlogin/login")
+
+    # Make sure page is fully loaded
+    time.sleep(3)
+
+    # Close popup if shows
     try:
-        popup_close = wait.until(
-            EC.presence_of_element_located((By.XPATH, "//div[@id='login_Layer']//span"))
-        )
-        popup_close.click()
+        popup = driver.find_element(By.XPATH, "//span[@class='crossIcon chatBot chatBot-ico']")
+        popup.click()
         print("🪟 Popup closed")
-        time.sleep(1)
     except:
-        print("ℹ️ No popup")
+        print("ℹ️ No popup found")
 
-    # 🔹 Enter email
-    wait.until(EC.presence_of_element_located((By.ID, "usernameField"))).send_keys(email)
+    # Retry clicking Username field if not visible the first time
+    for i in range(3):
+        try:
+            username = wait.until(
+                EC.visibility_of_element_located((By.ID, "usernameField"))
+            )
+            username.clear()
+            username.send_keys(email)
+            break
+        except:
+            print(f"Retrying username field attempt {i+1}")
+            driver.get("https://www.naukri.com/nlogin/login")
+            time.sleep(2)
+    else:
+        raise Exception("❌ usernameField not found!!")
 
-    # 🔹 Enter password
-    driver.find_element(By.ID, "passwordField").send_keys(password)
+    # Enter password
+    wait.until(
+        EC.visibility_of_element_located((By.ID, "passwordField"))
+    ).send_keys(password)
 
-    # 🔹 Click login
+    # Click Login button
     driver.find_element(By.XPATH, "//button[@type='submit']").click()
 
-    # 🔹 Wait for successful redirect
+    # Wait till redirect → Dashboard / Homepage
     try:
-        wait.until(EC.url_contains("dashboard"))
-        print("🔐 Login success (Dashboard loaded)")
+        wait.until(
+            EC.any_of(
+                EC.url_contains("dashboard"),
+                EC.url_contains("profile"),
+                EC.url_contains("nsmart"),
+            )
+        )
+        print("🔐 Login Successful!")
     except:
-        print("⚠️ Login clicked but dashboard not arrived")
+        print("⚠️ Login button clicked but redirect not confirmed yet")
 
     return driver
