@@ -33,5 +33,9 @@ jobs:
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
-          NAUKRI_COOKIES_B64: ${{ secrets.NAUKRI_COOKIES_B64 }}   # 🔥 REQUIRED
+          NAUKRI_COOKIES_B64: ${{ secrets.NAUKRI_COOKIES_B64 }}
+
+          # 🔥 REQUIRED SEARCH VARIABLES
+          KEYWORDS: "devops engineer"
+          LOCATION: "bangalore"
         run: python main.py
