@@ -9,10 +9,51 @@ def search_jobs(driver, keywords, location):
         f"https://www.naukri.com/{keywords.replace(' ', '-')}-jobs-in-{location.replace(' ', '-')}"
     )
     print("🔎 Searching:", search_url)
+    
+    # Check for Access Denied before navigating
+    try:
+        current_url = driver.current_url
+        if "access" in current_url.lower() or "denied" in current_url.lower():
+            print("⚠️ Access Denied detected on current page. Trying to navigate to homepage first...")
+            driver.get("https://www.naukri.com/mnjuser/homepage")
+            time.sleep(5)
+    except:
+        pass
+    
+    # Navigate to search URL
     driver.get(search_url)
     
     # Wait for page to fully load
     time.sleep(8)  # Increased wait time
+    
+    # Check if we got Access Denied
+    try:
+        page_title = driver.title.lower()
+        page_source = driver.page_source.lower()
+        current_url = driver.current_url.lower()
+        
+        if "access denied" in page_title or "access denied" in page_source or len(driver.page_source) < 1000:
+            print("⚠️ Access Denied detected! Trying alternative approach...")
+            
+            # Try navigating via homepage first
+            driver.get("https://www.naukri.com/mnjuser/homepage")
+            time.sleep(5)
+            
+            # Try using the search box on homepage instead
+            try:
+                from selenium.webdriver.common.keys import Keys
+                search_input = driver.find_element(By.CSS_SELECTOR, "input[placeholder*='Search'], input[name*='search'], input[id*='search']")
+                search_input.clear()
+                search_input.send_keys(keywords)
+                search_input.send_keys(Keys.RETURN)
+                time.sleep(8)
+                print("✅ Used homepage search box")
+            except:
+                # If that fails, try direct URL again
+                driver.get(search_url)
+                time.sleep(8)
+    except Exception as e:
+        print(f"⚠️ Error checking for Access Denied: {str(e)[:50]}")
     
     # Wait for page to be ready
     try:
