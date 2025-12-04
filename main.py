@@ -4,7 +4,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 
 from config import Config
-from login import login
+from login import login_with_cookies
 from search import search_jobs
 from apply import apply_jobs
 
@@ -19,12 +19,19 @@ def main():
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
 
+    # Start Chrome
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()),
+        options=chrome_options
+    )
 
+    # Login using cookies
+    driver = login_with_cookies(driver)
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-
-    driver = login(driver, Config.EMAIL, Config.PASSWORD)
+    # Search jobs
     jobs = search_jobs(driver, Config.KEYWORDS, Config.LOCATION)
+
+    # Apply jobs
     applied = apply_jobs(driver, jobs, Config.APPLY_LIMIT)
 
     print(f"🎉 Applied {applied} jobs today!")
