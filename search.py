@@ -1,23 +1,26 @@
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+import time
+from urllib.parse import quote
 
 def search_jobs(driver, keywords, location):
-    driver.get("https://www.naukri.com/")
-    WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located((By.XPATH, "//input[@placeholder='Enter skills / designations']"))
-    ).send_keys(",".join(keywords))
+    print("🔎 Searching jobs...")
 
-    loc = driver.find_element(By.XPATH, "//input[@placeholder='Enter location']")
-    loc.clear()
-    loc.send_keys(location)
+    kw = quote(keywords)
+    loc = quote(location)
 
-    driver.find_element(By.XPATH, "//button[text()='Search']").click()
+    # Direct URL search (bypasses UI which fails in headless mode)
+    url = f"https://www.naukri.com/{kw}-jobs-in-{loc}"
+    driver.get(url)
+    time.sleep(4)
 
-    WebDriverWait(driver, 20).until(
-        EC.presence_of_all_elements_located((By.XPATH, "//a[@class='title fw500 ellipsis']"))
-    )
+    # Collect jobs from job cards
+    job_cards = driver.find_elements("css selector", "a.title")
 
-    job_links = [el.get_attribute("href") for el in driver.find_elements(By.XPATH, "//a[@class='title fw500 ellipsis']")]
-    print(f"🔎 Found {len(job_links)} jobs")
-    return job_links[:50]
+    jobs = []
+    for job in job_cards[:50]:  # Limit for safety
+        jobs.append({
+            "title": job.text,
+            "link": job.get_attribute("href")
+        })
+
+    print(f"📌 Found {len(jobs)} jobs.")
+    return jobs
