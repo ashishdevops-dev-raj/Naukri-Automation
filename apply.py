@@ -190,26 +190,35 @@ def apply_to_jobs(driver, job_cards, max_applications=7):
             if not apply_success:
                 print(f"⚠️ Could not find Apply button for job {idx}")
             
-            # Close current window and switch back
-            if len(driver.window_handles) > 1:
-                driver.close()
-                driver.switch_to.window(driver.window_handles[0])
-            else:
-                # If no new window was opened, go back
+            # Go back to search results page
+            try:
                 driver.back()
                 time.sleep(2)
+            except:
+                # If back fails, navigate to search URL
+                try:
+                    # Try to get the search URL from the original page
+                    driver.get("https://www.naukri.com/devops-engineer-jobs-in-bangalore")
+                    time.sleep(2)
+                except:
+                    pass
 
         except Exception as e:
-            print(f"❌ Error applying to job {idx}: {str(e)[:100]}")
-            # Make sure we're back on the main window
+            error_msg = str(e)
+            if len(error_msg) > 100:
+                error_msg = error_msg[:100]
+            print(f"❌ Error applying to job {idx}: {error_msg}")
+            
+            # Try to go back to search results
             try:
-                if len(driver.window_handles) > 1:
-                    driver.close()
-                    driver.switch_to.window(driver.window_handles[0])
-                else:
-                    driver.back()
+                driver.back()
+                time.sleep(2)
             except:
-                pass
+                try:
+                    driver.get("https://www.naukri.com/devops-engineer-jobs-in-bangalore")
+                    time.sleep(2)
+                except:
+                    pass
             continue
 
     return applied

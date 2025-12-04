@@ -173,4 +173,24 @@ def search_jobs(driver, keywords, location):
         except:
             pass
     
-    return job_cards if job_cards else []
+    # Extract job links immediately to avoid stale element references
+    job_links = []
+    for card in job_cards:
+        try:
+            if card.tag_name == 'a':
+                href = card.get_attribute('href')
+            else:
+                link_elem = card.find_element(By.CSS_SELECTOR, "a")
+                href = link_elem.get_attribute('href')
+            
+            if href and href not in job_links:
+                job_links.append(href)
+        except:
+            continue
+    
+    if job_links:
+        print(f"✅ Extracted {len(job_links)} job links")
+        return job_links
+    else:
+        # If we couldn't extract links, return empty list
+        return []
