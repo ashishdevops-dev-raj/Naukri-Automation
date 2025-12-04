@@ -1,0 +1,41 @@
+name: Auto Apply Naukri Jobs
+
+on:
+  schedule:
+    - cron: "30 3 * * *"   # 9:00 AM IST (UTC+5:30)
+  workflow_dispatch:
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Chrome (required for Selenium)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable || true
+
+      - name: Run bot
+        env:
+          NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
+          NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
+          NAUKRI_COOKIES_B64: ${{ secrets.NAUKRI_COOKIES_B64 }}
+
+          # 🔥 REQUIRED SEARCH VARIABLES
+          KEYWORDS: "devops engineer"
+          LOCATION: "bangalore"
+        run: python main.py
