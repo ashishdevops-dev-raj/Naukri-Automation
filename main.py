@@ -25,7 +25,7 @@ if __name__ == "__main__":
     new_headline = (
         "With over +2 years of experience in Application Support and a Master's degree in Computer Applications, "
         "I am proficient in technologies such as Unix, SQL, Jenkins, Docker, Git, ITIL, and Shell Scripting, "
-        "along with additional exposure to DevOps...."
+        "along with additional exposure to DevOps....."
     )
     
     print("\n📝 Updating resume headline...")
