@@ -1,27 +1,28 @@
-import time
+from selenium.webdriver.common.by import By
 from urllib.parse import quote
+import time
 
 def search_jobs(driver, keywords, location):
-    print("🔎 Searching jobs...")
+    keywords = quote(keywords)
+    location = quote(location)
 
-    keywords = str(keywords or "")
-    location = str(location or "")
-
-    kw = quote(keywords)
-    loc = quote(location)
-
-    url = f"https://www.naukri.com/{kw}-jobs-in-{loc}"
+    url = f"https://www.naukri.com/{keywords}-jobs-in-{location}"
+    print(f"🔎 Searching: {url}")
     driver.get(url)
     time.sleep(4)
 
-    job_cards = driver.find_elements("css selector", "a.title")
+    job_cards = driver.find_elements(By.CSS_SELECTOR, "a.title")
 
     jobs = []
-    for job in job_cards[:50]:
-        jobs.append({
-            "title": job.text,
-            "link": job.get_attribute("href")
-        })
+    for card in job_cards:
+        try:
+            job = {
+                "title": card.text.strip(),
+                "link": card.get_attribute("href")
+            }
+            jobs.append(job)
+        except:
+            continue
 
     print(f"📌 Found {len(jobs)} jobs.")
     return jobs
