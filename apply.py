@@ -3,7 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-def apply_to_jobs(driver, job_cards):
+def apply_to_jobs(driver, job_cards, max_applications=7):
     applied = 0
     wait = WebDriverWait(driver, 10)
     
@@ -11,9 +11,13 @@ def apply_to_jobs(driver, job_cards):
         print("⚠️ No job cards to apply to")
         return applied
     
-    print(f"🔄 Starting to apply to {len(job_cards)} jobs...")
+    print(f"🔄 Starting to apply to jobs (max {max_applications} per day)...")
     
     for idx, job in enumerate(job_cards, 1):
+        # Stop if we've reached the daily limit
+        if applied >= max_applications:
+            print(f"✅ Reached daily limit of {max_applications} applications. Stopping.")
+            break
         try:
             print(f"📋 Processing job {idx}/{len(job_cards)}...")
             
@@ -23,31 +27,40 @@ def apply_to_jobs(driver, job_cards):
             
             # Get job link if it's an anchor tag
             job_link = None
-            if job.tag_name == 'a':
-                job_link = job.get_attribute('href')
-            else:
-                # Try to find link within the job card
-                try:
-                    link_elem = job.find_element(By.CSS_SELECTOR, "a")
-                    job_link = link_elem.get_attribute('href')
-                except:
-                    pass
+            try:
+                if job.tag_name == 'a':
+                    job_link = job.get_attribute('href')
+                else:
+                    # Try to find link within the job card
+                    try:
+                        link_elem = job.find_element(By.CSS_SELECTOR, "a")
+                        job_link = link_elem.get_attribute('href')
+                    except:
+                        pass
+            except Exception as e:
+                print(f"⚠️ Could not get job link: {str(e)[:50]}")
+                continue
             
-            # Click on job or navigate to link
+            # Navigate to job link
             if job_link:
                 print(f"🔗 Opening job link: {job_link[:80]}...")
-                driver.execute_script(f"window.open('{job_link}', '_blank');")
+                try:
+                    driver.get(job_link)
+                except:
+                    # If direct navigation fails, try opening in new window
+                    try:
+                        driver.execute_script(f"window.open('{job_link}', '_blank');")
+                        if len(driver.window_handles) > 1:
+                            driver.switch_to.window(driver.window_handles[-1])
+                    except:
+                        print(f"⚠️ Could not navigate to job link")
+                        continue
             else:
-                job.click()
+                print(f"⚠️ No job link found for job {idx}, skipping")
+                continue
             
-            time.sleep(2)
-            
-            # Switch to new window
-            if len(driver.window_handles) > 1:
-                driver.switch_to.window(driver.window_handles[-1])
-                time.sleep(3)
-            else:
-                time.sleep(3)  # If no new window, wait for page to load
+            # Wait for page to load
+            time.sleep(4)
 
             # Wait for page to fully load
             try:

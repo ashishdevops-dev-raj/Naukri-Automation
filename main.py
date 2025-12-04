@@ -96,8 +96,9 @@ if __name__ == "__main__":
     job_cards = search_jobs(driver, KEYWORDS, LOCATION)
     print(f"📌 Found {len(job_cards)} jobs.")
 
-    # Apply to jobs
-    applied = apply_to_jobs(driver, job_cards)
-    print(f"🎉 Applied {applied} jobs today!")
+    # Apply to jobs (limit to 7 per day)
+    MAX_APPLICATIONS = int(os.getenv("MAX_APPLICATIONS", "7"))
+    applied = apply_to_jobs(driver, job_cards, max_applications=MAX_APPLICATIONS)
+    print(f"🎉 Applied {applied} jobs today! (Limit: {MAX_APPLICATIONS})")
 
     driver.quit()

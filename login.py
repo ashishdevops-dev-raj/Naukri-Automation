@@ -85,11 +85,24 @@ def update_resume_headline(driver, wait, new_headline):
             print("⚠️ Could not find edit icon, skipping headline update")
             return False
         
-        # Scroll to element
-        driver.execute_script("arguments[0].scrollIntoView(true);", pencil_icon)
-        time.sleep(1)
-        pencil_icon.click()
+        # Scroll to element and try to click
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", pencil_icon)
         time.sleep(2)
+        
+        # Try JavaScript click first (avoids click interception)
+        try:
+            driver.execute_script("arguments[0].click();", pencil_icon)
+            time.sleep(2)
+        except:
+            # If JS click fails, try regular click
+            try:
+                # Wait a bit more and try again
+                time.sleep(1)
+                pencil_icon.click()
+                time.sleep(2)
+            except Exception as e:
+                print(f"⚠️ Could not click edit icon: {str(e)[:100]}")
+                return False
         
         # Try multiple selectors for textarea
         textarea_selectors = [
