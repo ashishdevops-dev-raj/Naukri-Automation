@@ -71,15 +71,22 @@ if __name__ == "__main__":
         "along with additional exposure to DevOps....."
     )
     
-    print("\n📝 Updating resume headline...")
-    wait = WebDriverWait(driver, 10)
+    print("\n📝 Updating resume headline (optional step)...")
+    wait = WebDriverWait(driver, 15)
     try:
         # Navigate to profile page
         driver.get("https://www.naukri.com/mnjuser/profile")
-        time.sleep(5)  # Increased wait time
-        update_resume_headline(driver, wait, new_headline)
+        time.sleep(5)  # Wait for page to load
+        
+        # Try to update headline, but don't fail if it doesn't work
+        headline_updated = update_resume_headline(driver, wait, new_headline)
+        if not headline_updated:
+            print("⚠️ Resume headline update skipped or failed - continuing with job search")
     except Exception as e:
-        print(f"⚠️ Could not update resume headline: {str(e)[:100]}")
+        error_msg = str(e)
+        if len(error_msg) > 100:
+            error_msg = error_msg[:100]
+        print(f"⚠️ Could not update resume headline: {error_msg}")
         print("Continuing with job search...")
 
     # Search for jobs

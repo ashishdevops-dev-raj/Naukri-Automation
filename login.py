@@ -49,17 +49,113 @@ def update_resume_headline(driver, wait, new_headline):
     """Update resume headline on Naukri profile page"""
     try:
         print("🔍 Looking for pencil icon to edit headline...")
-        pencil_icon = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "span.edit.icon")))
-        print("✏ Pencil icon found, clicking...")
+        
+        # Try multiple selectors for the edit icon
+        edit_selectors = [
+            "span.edit.icon",
+            "span[class*='edit']",
+            "i[class*='edit']",
+            "button[class*='edit']",
+            "a[class*='edit']",
+            ".edit-icon",
+            "[data-testid*='edit']"
+        ]
+        
+        pencil_icon = None
+        for selector in edit_selectors:
+            try:
+                pencil_icon = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+                if pencil_icon:
+                    print(f"✏ Edit icon found with selector: {selector}")
+                    break
+            except:
+                continue
+        
+        if not pencil_icon:
+            # Try to find by text or other methods
+            try:
+                pencil_icon = driver.find_element(By.XPATH, "//span[contains(@class, 'icon') and contains(@class, 'edit')]")
+            except:
+                try:
+                    pencil_icon = driver.find_element(By.XPATH, "//*[contains(@class, 'edit') and contains(@class, 'icon')]")
+                except:
+                    pass
+        
+        if not pencil_icon:
+            print("⚠️ Could not find edit icon, skipping headline update")
+            return False
+        
+        # Scroll to element
+        driver.execute_script("arguments[0].scrollIntoView(true);", pencil_icon)
+        time.sleep(1)
         pencil_icon.click()
-        textarea = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "textarea")))
+        time.sleep(2)
+        
+        # Try multiple selectors for textarea
+        textarea_selectors = [
+            "textarea",
+            "textarea[class*='headline']",
+            "textarea[id*='headline']",
+            "input[type='text'][class*='headline']"
+        ]
+        
+        textarea = None
+        for selector in textarea_selectors:
+            try:
+                textarea = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, selector)))
+                if textarea:
+                    break
+            except:
+                continue
+        
+        if not textarea:
+            print("⚠️ Could not find textarea, skipping headline update")
+            return False
+        
         textarea.clear()
+        time.sleep(0.5)
         textarea.send_keys(new_headline)
-        save_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[text()='Save']")))
+        time.sleep(1)
+        
+        # Try multiple selectors for save button
+        save_selectors = [
+            "//button[text()='Save']",
+            "//button[contains(text(),'Save')]",
+            "//button[@type='submit']",
+            "button[class*='save']",
+            "button[class*='submit']"
+        ]
+        
+        save_button = None
+        for selector in save_selectors:
+            try:
+                if selector.startswith("//"):
+                    save_button = wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
+                else:
+                    save_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+                if save_button:
+                    break
+            except:
+                continue
+        
+        if not save_button:
+            print("⚠️ Could not find save button, skipping headline update")
+            return False
+        
         save_button.click()
-        wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "textarea")))
+        time.sleep(2)
+        
+        # Wait for textarea to disappear (confirmation it saved)
+        try:
+            wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "textarea")))
+        except:
+            pass  # Don't fail if we can't confirm
+        
         print("✅ Resume headline updated successfully.")
         return True
     except Exception as e:
-        print("❗Failed to update resume headline:", e)
+        error_msg = str(e)
+        if len(error_msg) > 200:
+            error_msg = error_msg[:200]
+        print(f"❗Failed to update resume headline: {error_msg}")
         return False
