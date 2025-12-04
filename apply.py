@@ -49,32 +49,130 @@ def apply_to_jobs(driver, job_cards):
             else:
                 time.sleep(3)  # If no new window, wait for page to load
 
+            # Wait for page to fully load
+            try:
+                WebDriverWait(driver, 10).until(
+                    lambda d: d.execute_script("return document.readyState") == "complete"
+                )
+            except:
+                pass
+            
+            # Scroll to top first, then down to ensure page is loaded
+            driver.execute_script("window.scrollTo(0, 0);")
+            time.sleep(2)
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
+            time.sleep(2)
+            
             # Try multiple ways to find and click Apply button
             apply_success = False
             apply_selectors = [
+                # XPath selectors
+                "//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'apply')]",
+                "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'apply')]",
                 "//button[contains(text(),'Apply')]",
                 "//a[contains(text(),'Apply')]",
+                "//button[contains(text(),'APPLY')]",
+                "//a[contains(text(),'APPLY')]",
+                "//span[contains(text(),'Apply')]/parent::button",
+                "//span[contains(text(),'Apply')]/parent::a",
+                "//span[contains(text(),'APPLY')]/parent::button",
+                "//span[contains(text(),'APPLY')]/parent::a",
                 "//button[contains(@class,'apply')]",
                 "//a[contains(@class,'apply')]",
-                "//span[contains(text(),'Apply')]/parent::button",
-                "//span[contains(text(),'Apply')]/parent::a"
+                "//button[contains(@id,'apply')]",
+                "//a[contains(@id,'apply')]",
+                "//button[contains(@data-testid,'apply')]",
+                "//a[contains(@data-testid,'apply')]",
+                # CSS selectors
+                "button.applyBtn",
+                "a.applyBtn",
+                "button[class*='apply']",
+                "a[class*='apply']",
+                "button[class*='Apply']",
+                "a[class*='Apply']",
+                "button[id*='apply']",
+                "a[id*='apply']",
+                ".apply-button",
+                "#apply-button",
+                "button.btn-apply",
+                "a.btn-apply"
             ]
             
             for selector in apply_selectors:
                 try:
-                    apply_btn = wait.until(
-                        EC.element_to_be_clickable((By.XPATH, selector))
-                    )
-                    driver.execute_script("arguments[0].scrollIntoView(true);", apply_btn)
+                    # Try with explicit wait first
+                    try:
+                        if selector.startswith("//"):
+                            apply_btn = wait.until(
+                                EC.element_to_be_clickable((By.XPATH, selector))
+                            )
+                        else:
+                            apply_btn = wait.until(
+                                EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+                            )
+                    except:
+                        # If explicit wait fails, try direct find
+                        if selector.startswith("//"):
+                            apply_btn = driver.find_element(By.XPATH, selector)
+                        else:
+                            apply_btn = driver.find_element(By.CSS_SELECTOR, selector)
+                    
+                    # Check if element is visible and enabled
+                    if not apply_btn.is_displayed() or not apply_btn.is_enabled():
+                        continue
+                    
+                    # Scroll to button
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", apply_btn)
                     time.sleep(1)
-                    apply_btn.click()
-                    time.sleep(2)
-                    applied += 1
-                    print(f"✅ Applied to job {idx} 👍")
-                    apply_success = True
-                    break
+                    
+                    # Try clicking with JavaScript first (more reliable)
+                    try:
+                        driver.execute_script("arguments[0].click();", apply_btn)
+                        time.sleep(3)
+                        applied += 1
+                        print(f"✅ Applied to job {idx} 👍")
+                        apply_success = True
+                        break
+                    except:
+                        # If JS click fails, try regular click
+                        try:
+                            apply_btn.click()
+                            time.sleep(3)
+                            applied += 1
+                            print(f"✅ Applied to job {idx} 👍")
+                            apply_success = True
+                            break
+                        except:
+                            continue
                 except Exception as e:
                     continue
+            
+            # If still not found, try to find any button/link with "apply" in it
+            if not apply_success:
+                try:
+                    all_buttons = driver.find_elements(By.TAG_NAME, "button")
+                    all_links = driver.find_elements(By.TAG_NAME, "a")
+                    all_elements = all_buttons + all_links
+                    
+                    for elem in all_elements:
+                        try:
+                            text = elem.text.lower()
+                            class_attr = elem.get_attribute("class") or ""
+                            id_attr = elem.get_attribute("id") or ""
+                            
+                            if ("apply" in text or "apply" in class_attr.lower() or "apply" in id_attr.lower()) and elem.is_displayed():
+                                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
+                                time.sleep(1)
+                                driver.execute_script("arguments[0].click();", elem)
+                                time.sleep(3)
+                                applied += 1
+                                print(f"✅ Applied to job {idx} (found via text/class search) 👍")
+                                apply_success = True
+                                break
+                        except:
+                            continue
+                except:
+                    pass
             
             if not apply_success:
                 print(f"⚠️ Could not find Apply button for job {idx}")
