@@ -7,55 +7,59 @@ import time
 def login(driver, email, password):
     wait = WebDriverWait(driver, 30)
 
-    # Force correct login URL to avoid redirect
+    # Force login URL
     driver.get("https://www.naukri.com/nlogin/login")
-
-    # Make sure page is fully loaded
     time.sleep(3)
 
-    # Close popup if shows
+    print("🔍 Checking which login screen is loaded ...")
+
+    # Try login screen type 1
     try:
-        popup = driver.find_element(By.XPATH, "//span[@class='crossIcon chatBot chatBot-ico']")
-        popup.click()
-        print("🪟 Popup closed")
+        username = wait.until(
+            EC.visibility_of_element_located((By.ID, "usernameField"))
+        )
+        print("📌 Using old login page UI")
+
+        username.clear()
+        username.send_keys(email)
+
+        driver.find_element(By.ID, "passwordField").send_keys(password)
+        driver.find_element(By.XPATH, "//button[@type='submit']").click()
+
     except:
-        print("ℹ️ No popup found")
-
-    # Retry clicking Username field if not visible the first time
-    for i in range(3):
+        # Try login screen type 2
         try:
-            username = wait.until(
-                EC.visibility_of_element_located((By.ID, "usernameField"))
+            print("📌 Using new login page UI")
+            email_box = wait.until(
+                EC.visibility_of_element_located((By.XPATH, "//input[@placeholder='Enter your active Email ID / Username']"))
             )
-            username.clear()
-            username.send_keys(email)
-            break
-        except:
-            print(f"Retrying username field attempt {i+1}")
-            driver.get("https://www.naukri.com/nlogin/login")
+            email_box.clear()
+            email_box.send_keys(email)
+
+            driver.find_element(By.XPATH, "//button[contains(text(),'Login')]").click()
             time.sleep(2)
-    else:
-        raise Exception("❌ usernameField not found!!")
 
-    # Enter password
-    wait.until(
-        EC.visibility_of_element_located((By.ID, "passwordField"))
-    ).send_keys(password)
+            # Add password on new UI
+            wait.until(
+                EC.visibility_of_element_located((By.XPATH, "//input[@type='password']"))
+            ).send_keys(password)
 
-    # Click Login button
-    driver.find_element(By.XPATH, "//button[@type='submit']").click()
+            driver.find_element(By.XPATH, "//button[contains(text(),'Login')]").click()
 
-    # Wait till redirect → Dashboard / Homepage
+        except:
+            raise Exception("❌ Unable to find ANY login form. Page redirected!")
+
+    # Wait for redirect → Dashboard/Home/Profile
     try:
         wait.until(
             EC.any_of(
                 EC.url_contains("dashboard"),
                 EC.url_contains("profile"),
-                EC.url_contains("nsmart"),
+                EC.url_contains("naukri"),
             )
         )
         print("🔐 Login Successful!")
     except:
-        print("⚠️ Login button clicked but redirect not confirmed yet")
+        print("⚠️ Login clicked, maybe OTP required?")
 
     return driver
