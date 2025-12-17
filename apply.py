@@ -2,10 +2,11 @@ import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 
 def apply_to_jobs(driver, job_links, max_applications=10):
     applied = 0
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 5)  # Reduced timeout to 5 seconds
     
     if not job_links:
         print("⚠️ No job links to apply to")
@@ -29,25 +30,38 @@ def apply_to_jobs(driver, job_links, max_applications=10):
             
             print(f"🔗 Opening job link: {job_link[:80]}...")
             try:
+                driver.set_page_load_timeout(15)  # 15 second timeout for page load
                 driver.get(job_link)
+                print("✅ Page loaded")
+            except TimeoutException:
+                print("⚠️ Page load timeout, skipping this job")
+                continue
             except Exception as e:
                 print(f"⚠️ Could not navigate to job link: {str(e)[:50]}")
                 continue
             
             # Wait for page to load
-            time.sleep(3)
+            print("⏳ Waiting for page to load...")
+            time.sleep(2)
 
-            # Wait for page to fully load
+            # Wait for page to fully load (with shorter timeout)
             try:
-                WebDriverWait(driver, 10).until(
+                WebDriverWait(driver, 5).until(
                     lambda d: d.execute_script("return document.readyState") == "complete"
                 )
+                print("✅ Page ready")
+            except:
+                print("⚠️ Page ready check timeout, continuing anyway...")
+            
+            # Scroll to ensure page is loaded
+            print("📜 Scrolling page...")
+            try:
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
+                time.sleep(1)
             except:
                 pass
             
-            # Scroll to ensure page is loaded
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
-            time.sleep(1)
+            print("🔍 Looking for Apply button...")
             
             # Try multiple ways to find and click Apply button
             apply_success = False
@@ -87,27 +101,17 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                 "a[class*='Apply']"
             ]
             
-            for selector in apply_selectors:
+            for idx_sel, selector in enumerate(apply_selectors, 1):
                 try:
-                    # Try with explicit wait first
+                    # Try direct find first (faster, no wait)
                     try:
                         if selector.startswith("//"):
-                            apply_btn = wait.until(
-                                EC.presence_of_element_located((By.XPATH, selector))
-                            )
+                            apply_btn = driver.find_element(By.XPATH, selector)
                         else:
-                            apply_btn = wait.until(
-                                EC.presence_of_element_located((By.CSS_SELECTOR, selector))
-                            )
+                            apply_btn = driver.find_element(By.CSS_SELECTOR, selector)
                     except:
-                        # If explicit wait fails, try direct find
-                        try:
-                            if selector.startswith("//"):
-                                apply_btn = driver.find_element(By.XPATH, selector)
-                            else:
-                                apply_btn = driver.find_element(By.CSS_SELECTOR, selector)
-                        except:
-                            continue
+                        # If direct find fails, skip this selector quickly
+                        continue
                     
                     # Check if element exists and is visible
                     if not apply_btn or not apply_btn.is_displayed():
@@ -208,12 +212,14 @@ def apply_to_jobs(driver, job_links, max_applications=10):
             
             # If still not found, try to find any button/link with "apply" in it
             if not apply_success:
+                print("🔍 Trying fallback search for Apply button...")
                 try:
                     all_buttons = driver.find_elements(By.TAG_NAME, "button")
                     all_links = driver.find_elements(By.TAG_NAME, "a")
                     all_elements = all_buttons + all_links
                     
-                    for elem in all_elements:
+                    # Limit search to first 50 elements for speed
+                    for elem in all_elements[:50]:
                         try:
                             if not elem.is_displayed():
                                 continue

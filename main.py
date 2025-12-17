@@ -35,6 +35,7 @@ if __name__ == "__main__":
     chrome_options.add_experimental_option("prefs", prefs)
 
     driver = webdriver.Chrome(options=chrome_options)
+    driver.set_page_load_timeout(20)  # Set page load timeout
     
     # Additional stealth measures via CDP
     try:
