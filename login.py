@@ -50,36 +50,50 @@ def update_resume_headline(driver, wait, new_headline):
     try:
         print("🔍 Looking for pencil icon to edit headline...")
         
-        # Try multiple selectors for the edit icon
+        # Wait for page to load
+        time.sleep(2)
+        
+        # Scroll to top to ensure we see the headline section
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(1)
+        
+        # Try multiple selectors for the edit icon (prioritized)
         edit_selectors = [
             "span.edit.icon",
-            "span[class*='edit']",
             "i[class*='edit']",
+            "span[class*='edit']",
             "button[class*='edit']",
             "a[class*='edit']",
             ".edit-icon",
-            "[data-testid*='edit']"
+            "[data-testid*='edit']",
+            "//span[contains(@class, 'icon') and contains(@class, 'edit')]",
+            "//i[contains(@class, 'edit')]",
+            "//*[contains(@class, 'edit') and contains(@class, 'icon')]"
         ]
         
         pencil_icon = None
         for selector in edit_selectors:
             try:
-                pencil_icon = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
-                if pencil_icon:
-                    print(f"✏ Edit icon found with selector: {selector}")
-                    break
+                if selector.startswith("//"):
+                    # Try direct find first (faster)
+                    try:
+                        pencil_icon = driver.find_element(By.XPATH, selector)
+                        if pencil_icon and pencil_icon.is_displayed():
+                            print(f"✏ Edit icon found with selector: {selector}")
+                            break
+                    except:
+                        continue
+                else:
+                    # Try direct find first (faster)
+                    try:
+                        pencil_icon = driver.find_element(By.CSS_SELECTOR, selector)
+                        if pencil_icon and pencil_icon.is_displayed():
+                            print(f"✏ Edit icon found with selector: {selector}")
+                            break
+                    except:
+                        continue
             except:
                 continue
-        
-        if not pencil_icon:
-            # Try to find by text or other methods
-            try:
-                pencil_icon = driver.find_element(By.XPATH, "//span[contains(@class, 'icon') and contains(@class, 'edit')]")
-            except:
-                try:
-                    pencil_icon = driver.find_element(By.XPATH, "//*[contains(@class, 'edit') and contains(@class, 'icon')]")
-                except:
-                    pass
         
         if not pencil_icon:
             print("⚠️ Could not find edit icon, skipping headline update")
@@ -104,20 +118,35 @@ def update_resume_headline(driver, wait, new_headline):
                 print(f"⚠️ Could not click edit icon: {str(e)[:100]}")
                 return False
         
-        # Try multiple selectors for textarea
+        # Wait a bit for the edit form to appear
+        time.sleep(2)
+        
+        # Try multiple selectors for textarea (prioritized)
         textarea_selectors = [
-            "textarea",
             "textarea[class*='headline']",
             "textarea[id*='headline']",
-            "input[type='text'][class*='headline']"
+            "textarea",
+            "input[type='text'][class*='headline']",
+            "input[class*='headline']"
         ]
         
         textarea = None
         for selector in textarea_selectors:
             try:
-                textarea = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, selector)))
-                if textarea:
-                    break
+                # Try direct find first (faster)
+                try:
+                    textarea = driver.find_element(By.CSS_SELECTOR, selector)
+                    if textarea and textarea.is_displayed():
+                        print(f"📝 Found textarea with selector: {selector}")
+                        break
+                except:
+                    # If direct find fails, try with wait
+                    try:
+                        textarea = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, selector)))
+                        if textarea:
+                            break
+                    except:
+                        continue
             except:
                 continue
         
@@ -130,24 +159,49 @@ def update_resume_headline(driver, wait, new_headline):
         textarea.send_keys(new_headline)
         time.sleep(1)
         
-        # Try multiple selectors for save button
+        # Try multiple selectors for save button (prioritized)
         save_selectors = [
-            "//button[text()='Save']",
             "//button[contains(text(),'Save')]",
-            "//button[@type='submit']",
+            "//button[text()='Save']",
             "button[class*='save']",
-            "button[class*='submit']"
+            "button[class*='submit']",
+            "//button[@type='submit']",
+            "button[type='submit']"
         ]
         
         save_button = None
         for selector in save_selectors:
             try:
                 if selector.startswith("//"):
-                    save_button = wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
+                    # Try direct find first
+                    try:
+                        save_button = driver.find_element(By.XPATH, selector)
+                        if save_button and save_button.is_displayed():
+                            print(f"💾 Found save button with selector: {selector}")
+                            break
+                    except:
+                        # If direct find fails, try with wait
+                        try:
+                            save_button = wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
+                            if save_button:
+                                break
+                        except:
+                            continue
                 else:
-                    save_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
-                if save_button:
-                    break
+                    # Try direct find first
+                    try:
+                        save_button = driver.find_element(By.CSS_SELECTOR, selector)
+                        if save_button and save_button.is_displayed():
+                            print(f"💾 Found save button with selector: {selector}")
+                            break
+                    except:
+                        # If direct find fails, try with wait
+                        try:
+                            save_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+                            if save_button:
+                                break
+                        except:
+                            continue
             except:
                 continue
         
@@ -155,7 +209,23 @@ def update_resume_headline(driver, wait, new_headline):
             print("⚠️ Could not find save button, skipping headline update")
             return False
         
-        save_button.click()
+        # Scroll to save button and click
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", save_button)
+        time.sleep(1)
+        
+        # Try JavaScript click first
+        try:
+            driver.execute_script("arguments[0].click();", save_button)
+            print("💾 Clicked save button (JS)")
+        except:
+            # If JS click fails, try regular click
+            try:
+                save_button.click()
+                print("💾 Clicked save button (regular)")
+            except Exception as e:
+                print(f"⚠️ Could not click save button: {str(e)[:50]}")
+                return False
+        
         time.sleep(2)
         
         # Wait for textarea to disappear (confirmation it saved)

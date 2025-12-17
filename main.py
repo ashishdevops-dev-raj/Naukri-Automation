@@ -4,7 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
-from login import login_with_cookies
+from login import login_with_cookies, update_resume_headline
 from search import search_jobs
 from apply import apply_to_jobs
 
@@ -65,7 +65,33 @@ if __name__ == "__main__":
     except:
         pass
 
-    # Skip resume headline update to save time - it's optional
+    # Update resume headline
+    new_headline = (
+        "With over +2 years of experience in Application Support and a Master's degree in Computer Applications, "
+        "I am proficient in technologies such as Unix, SQL, Jenkins, Docker, Git, ITIL, and Shell Scripting, "
+        "along with additional exposure to DevOps."
+    )
+    
+    print("\n📝 Updating resume headline...")
+    wait = WebDriverWait(driver, 10)
+    try:
+        # Navigate to profile page
+        driver.get("https://www.naukri.com/mnjuser/profile")
+        time.sleep(3)  # Wait for page to load
+        
+        # Try to update headline
+        headline_updated = update_resume_headline(driver, wait, new_headline)
+        if headline_updated:
+            print("✅ Resume headline updated successfully!")
+        else:
+            print("⚠️ Resume headline update skipped or failed - continuing with job search")
+    except Exception as e:
+        error_msg = str(e)
+        if len(error_msg) > 100:
+            error_msg = error_msg[:100]
+        print(f"⚠️ Could not update resume headline: {error_msg}")
+        print("Continuing with job search...")
+
     # Search for jobs
     KEYWORDS = os.getenv("KEYWORDS", "devops engineer")
 
