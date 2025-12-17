@@ -541,20 +541,5 @@ This project is open source and available for personal use.
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
----
-
-## 📧 Support
-
-For issues or questions:
-
-1. Check the [Troubleshooting](#-troubleshooting) section above
-2. Review GitHub Issues
-3. Create a new issue with detailed error logs
-
----
 
 **Happy Job Hunting! 🚀**
