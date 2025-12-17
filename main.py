@@ -92,10 +92,12 @@ if __name__ == "__main__":
         print(f"⚠️ Could not update resume headline: {error_msg}")
         print("Continuing with job search...")
 
-    # Search for jobs
+    # Search for jobs with experience filter (0-3 years)
     KEYWORDS = os.getenv("KEYWORDS", "devops engineer")
+    EXPERIENCE_MIN = int(os.getenv("EXPERIENCE_MIN", "0"))
+    EXPERIENCE_MAX = int(os.getenv("EXPERIENCE_MAX", "3"))
 
-    job_cards = search_jobs(driver, KEYWORDS)
+    job_cards = search_jobs(driver, KEYWORDS, experience_min=EXPERIENCE_MIN, experience_max=EXPERIENCE_MAX)
     print(f"📌 Found {len(job_cards)} jobs.")
 
     # Apply to jobs (limit to 10 per day)

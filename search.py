@@ -4,11 +4,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-def search_jobs(driver, keywords):
-    search_url = (
-        f"https://www.naukri.com/{keywords.replace(' ', '-')}-jobs"
-    )
+def search_jobs(driver, keywords, experience_min=0, experience_max=3):
+    # Build search URL with experience filter (0-3 years)
+    base_url = f"https://www.naukri.com/{keywords.replace(' ', '-')}-jobs"
+    search_url = f"{base_url}?experience={experience_min}-{experience_max}"
     print("🔎 Searching:", search_url)
+    print(f"📊 Experience filter: {experience_min}-{experience_max} years")
     
     # Check for Access Denied before navigating
     try:

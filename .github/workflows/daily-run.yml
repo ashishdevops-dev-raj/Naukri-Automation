@@ -37,5 +37,7 @@ jobs:
 
           # 🔥 REQUIRED SEARCH VARIABLES
           KEYWORDS: "devops engineer"
+          EXPERIENCE_MIN: "0"
+          EXPERIENCE_MAX: "3"
         run: python main.py
 
