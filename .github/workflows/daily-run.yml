@@ -37,6 +37,5 @@ jobs:
 
           # 🔥 REQUIRED SEARCH VARIABLES
           KEYWORDS: "devops engineer"
-          LOCATION: "bangalore"
         run: python main.py
 

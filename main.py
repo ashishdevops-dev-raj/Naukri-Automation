@@ -4,7 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
-from login import login_with_cookies, update_resume_headline
+from login import login_with_cookies
 from search import search_jobs
 from apply import apply_to_jobs
 
@@ -53,47 +53,22 @@ if __name__ == "__main__":
     login_with_cookies(driver)
     print("🎯 Cookie login success!")
     
-    # Wait a bit after login to appear more human-like
-    time.sleep(5)
+    # Wait a bit after login to establish session
+    time.sleep(2)
     
     # Navigate to homepage first to establish session
     try:
         driver.get("https://www.naukri.com/mnjuser/homepage")
-        time.sleep(3)
+        time.sleep(2)
         print("✅ Navigated to homepage")
     except:
         pass
 
-    # Update resume headline (optional - continue even if it fails)
-    new_headline = (
-        "With over +2 years of experience in Application Support and a Master's degree in Computer Applications, "
-        "I am proficient in technologies such as Unix, SQL, Jenkins, Docker, Git, ITIL, and Shell Scripting, "
-        "along with additional exposure to DevOps."
-    )
-    
-    print("\n📝 Updating resume headline (optional step)...")
-    wait = WebDriverWait(driver, 15)
-    try:
-        # Navigate to profile page
-        driver.get("https://www.naukri.com/mnjuser/profile")
-        time.sleep(5)  # Wait for page to load
-        
-        # Try to update headline, but don't fail if it doesn't work
-        headline_updated = update_resume_headline(driver, wait, new_headline)
-        if not headline_updated:
-            print("⚠️ Resume headline update skipped or failed - continuing with job search")
-    except Exception as e:
-        error_msg = str(e)
-        if len(error_msg) > 100:
-            error_msg = error_msg[:100]
-        print(f"⚠️ Could not update resume headline: {error_msg}")
-        print("Continuing with job search...")
-
+    # Skip resume headline update to save time - it's optional
     # Search for jobs
     KEYWORDS = os.getenv("KEYWORDS", "devops engineer")
-    LOCATION = os.getenv("LOCATION", "bangalore")
 
-    job_cards = search_jobs(driver, KEYWORDS, LOCATION)
+    job_cards = search_jobs(driver, KEYWORDS)
     print(f"📌 Found {len(job_cards)} jobs.")
 
     # Apply to jobs (limit to 10 per day)

@@ -4,9 +4,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-def search_jobs(driver, keywords, location):
+def search_jobs(driver, keywords):
     search_url = (
-        f"https://www.naukri.com/{keywords.replace(' ', '-')}-jobs-in-{location.replace(' ', '-')}"
+        f"https://www.naukri.com/{keywords.replace(' ', '-')}-jobs"
     )
     print("🔎 Searching:", search_url)
     
@@ -24,7 +24,7 @@ def search_jobs(driver, keywords, location):
     driver.get(search_url)
     
     # Wait for page to fully load
-    time.sleep(8)  # Increased wait time
+    time.sleep(4)
     
     # Check if we got Access Denied
     try:
@@ -37,7 +37,7 @@ def search_jobs(driver, keywords, location):
             
             # Try navigating via homepage first
             driver.get("https://www.naukri.com/mnjuser/homepage")
-            time.sleep(5)
+            time.sleep(3)
             
             # Try using the search box on homepage instead
             try:
@@ -46,24 +46,24 @@ def search_jobs(driver, keywords, location):
                 search_input.clear()
                 search_input.send_keys(keywords)
                 search_input.send_keys(Keys.RETURN)
-                time.sleep(8)
+                time.sleep(4)
                 print("✅ Used homepage search box")
             except:
                 # If that fails, try direct URL again
                 driver.get(search_url)
-                time.sleep(8)
+                time.sleep(4)
     except Exception as e:
         print(f"⚠️ Error checking for Access Denied: {str(e)[:50]}")
     
     # Wait for page to be ready
     try:
-        WebDriverWait(driver, 20).until(
+        WebDriverWait(driver, 10).until(
             lambda d: d.execute_script("return document.readyState") == "complete"
         )
     except:
         pass
     
-    wait = WebDriverWait(driver, 20)
+    wait = WebDriverWait(driver, 10)
     
     # Try to handle any popups or overlays first
     try:
@@ -80,10 +80,8 @@ def search_jobs(driver, keywords, location):
     
     # Scroll down to load more content
     try:
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight/3);")
-        time.sleep(2)
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
-        time.sleep(2)
+        time.sleep(1)
     except:
         pass
     

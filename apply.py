@@ -5,7 +5,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 def apply_to_jobs(driver, job_links, max_applications=10):
     applied = 0
-    wait = WebDriverWait(driver, 15)
+    wait = WebDriverWait(driver, 10)
     
     if not job_links:
         print("⚠️ No job links to apply to")
@@ -35,23 +35,19 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                 continue
             
             # Wait for page to load
-            time.sleep(5)
+            time.sleep(3)
 
             # Wait for page to fully load
             try:
-                WebDriverWait(driver, 15).until(
+                WebDriverWait(driver, 10).until(
                     lambda d: d.execute_script("return document.readyState") == "complete"
                 )
             except:
                 pass
             
-            # Scroll to top first, then down to ensure page is loaded
-            driver.execute_script("window.scrollTo(0, 0);")
-            time.sleep(2)
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight/3);")
-            time.sleep(2)
+            # Scroll to ensure page is loaded
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
-            time.sleep(2)
+            time.sleep(1)
             
             # Try multiple ways to find and click Apply button
             apply_success = False
@@ -125,13 +121,13 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                         pass
                     
                     # Scroll to button
-                    driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", apply_btn)
-                    time.sleep(2)
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", apply_btn)
+                    time.sleep(1)
                     
                     # Try clicking with JavaScript first (more reliable)
                     try:
                         driver.execute_script("arguments[0].click();", apply_btn)
-                        time.sleep(3)
+                        time.sleep(2)
                         
                         # Handle any modals or confirmations that might appear
                         try:
@@ -155,7 +151,7 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                                     
                                     if confirm_btn.is_displayed():
                                         driver.execute_script("arguments[0].click();", confirm_btn)
-                                        time.sleep(2)
+                                        time.sleep(1)
                                         break
                                 except:
                                     continue
@@ -163,7 +159,7 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                             pass
                         
                         # Wait a bit to ensure application is processed
-                        time.sleep(3)
+                        time.sleep(2)
                         
                         applied += 1
                         print(f"✅ Applied to job {idx} 👍")
@@ -173,7 +169,7 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                         # If JS click fails, try regular click
                         try:
                             apply_btn.click()
-                            time.sleep(3)
+                            time.sleep(2)
                             
                             # Handle confirmations
                             try:
@@ -193,14 +189,14 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                                         
                                         if confirm_btn.is_displayed():
                                             driver.execute_script("arguments[0].click();", confirm_btn)
-                                            time.sleep(2)
+                                            time.sleep(1)
                                             break
                                     except:
                                         continue
                             except:
                                 pass
                             
-                            time.sleep(3)
+                            time.sleep(2)
                             applied += 1
                             print(f"✅ Applied to job {idx} 👍")
                             apply_success = True
@@ -227,10 +223,10 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                             id_attr = elem.get_attribute("id") or ""
                             
                             if ("apply" in text or "apply" in class_attr.lower() or "apply" in id_attr.lower()):
-                                driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", elem)
-                                time.sleep(2)
+                                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
+                                time.sleep(1)
                                 driver.execute_script("arguments[0].click();", elem)
-                                time.sleep(3)
+                                time.sleep(2)
                                 
                                 # Handle confirmations
                                 try:
@@ -250,14 +246,14 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                                             
                                             if confirm_btn.is_displayed():
                                                 driver.execute_script("arguments[0].click();", confirm_btn)
-                                                time.sleep(2)
+                                                time.sleep(1)
                                                 break
                                         except:
                                             continue
                                 except:
                                     pass
                                 
-                                time.sleep(3)
+                                time.sleep(2)
                                 applied += 1
                                 print(f"✅ Applied to job {idx} (found via text/class search) 👍")
                                 apply_success = True
@@ -277,7 +273,7 @@ def apply_to_jobs(driver, job_links, max_applications=10):
                     pass
             
             # Wait a bit before moving to next job
-            time.sleep(2)
+            time.sleep(1)
 
         except Exception as e:
             error_msg = str(e)
