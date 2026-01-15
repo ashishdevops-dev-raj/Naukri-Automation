@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     # Update resume headline
     new_headline = (
-        "DevOps Engineer | AWS | Docker | Kubernetes | CI/CD | Terraform | Linux | 2+ Years Experience."
+        "DevOps Engineer with 2+ Years Experience | Jenkins | Docker | Terraform | CI/CD | AWS | Linux | Production Support"
     )
     
     print("\n📝 Updating resume headline...")
